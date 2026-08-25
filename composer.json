@@ -1,0 +1,17 @@
+{
+  "name": "emporiosurfaces/es-smart-search",
+  "description": "Smart product search plugin with matching, ranking and fuzzy matching",
+  "version": "1.0.0",
+  "autoload": {
+    "psr-4": {
+      "EsSmartSearch\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Neil Williams",
+      "email": "neil@tailormade.uk"
+    }
+  ],
+  "require": {}
+}
