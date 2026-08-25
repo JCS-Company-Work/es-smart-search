@@ -4,10 +4,6 @@ namespace EsSmartSearch;
 
 class Assets {
 
-    public function __construct() {
-        $this->register();
-    }
-
     /**
      * Register scripts to be enqueued
      *

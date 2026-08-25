@@ -12,7 +12,7 @@ class Plugin {
     }
 
     private function register_assets() {
-        new Assets();
+        new Assets()->register();
     }
 
 }
