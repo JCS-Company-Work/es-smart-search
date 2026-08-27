@@ -1,15 +1,14 @@
-/**
- * Coordinates search state, URL state, API requests and product visibility.
- */
+/** Coordinates search state, URL state, API requests, and product visibility. */
 class ESSmartSearch {
-  /** Initialise the search state and DOM references. */
   constructor() {
+    // Current search state, including query, filters, and page number.
     this.state = {
       query: "",
       filters: {},
       page: 1,
     };
 
+    // Controller properties for DOM elements, timers, and request state.
     this.input = null;
     this.productList = null;
     this.stats = null;
@@ -22,28 +21,49 @@ class ESSmartSearch {
     this.originalProductOrder = [];
   }
 
-  /** Bind the search UI and restore any state encoded in the URL. */
+  /** Find the search UI, restore URL state, and start active searches. */
   init() {
+    // Get search input from DOM
     this.input = document.querySelector(".live-filter");
+
+    // Get product list from DOM
     this.productList = document.querySelector(".product-list");
+
+    // Get stats element from DOM
     this.stats = document.querySelector(".mixitup-page-stats");
+
+    // Get no results element from DOM this is the element that will be displayed when there are no results
     this.noResults = document.querySelector(".no-results");
+
+    // Get reset button from DOM
     this.resetButton = document.getElementById("reset-filters");
 
+    // If input, products or ESSS endpoint is missing, abort initialization
     if (!this.input || !this.productList || !window.ESSS) {
       return;
     }
 
+    // Store the original product order for restoring when no search is active
     this.originalProductOrder = Array.from(
       this.productList.querySelectorAll(":scope > li"),
     );
 
+    // Create the loading indicator element and append it to the product list
     this.createLoadingIndicator();
+
+    // Read the initial state from the URL hash or query parameters
     this.readUrlState();
+
+    // Bind event listeners for input, filters, reset, navigation, and layout changes
     this.bindEvents();
+
+    // Render the initial filter state in the UI based on the current state
     this.renderFilterState();
+
+    // Render the reset button state based on whether a query or filter is active
     this.renderResetState();
 
+    // If debugging is enabled, log the initial state and endpoint
     if (window.ESSS.debug) {
       console.info("[ES Smart Search] initialised", {
         minimumQueryLength: this.minimumQueryLength,
@@ -51,17 +71,25 @@ class ESSmartSearch {
       });
     }
 
+    // If a query or filter is active, perform an initial search to display results
     if (this.hasActiveState()) {
       this.search();
     }
   }
 
-  /** @returns {boolean} Whether a query or filter is active. */
+  /**
+   * Check if there is an active search query or any active filters.
+   *
+   * @returns {boolean} True if a query or filter is active, false otherwise.
+   */
   hasActiveState() {
     return Boolean(this.state.query || Object.keys(this.state.filters).length);
   }
 
-  /** Add the loading indicator used while a request is in flight. */
+  /**
+   * Create a loading indicator element and append it to the product list.
+   * The loading indicator is shown while an API request is in progress.
+   */
   createLoadingIndicator() {
     this.loading = document.createElement("div");
     this.loading.className = "es-smart-search-loading";
@@ -72,7 +100,14 @@ class ESSmartSearch {
     this.productList.appendChild(this.loading);
   }
 
-  /** Attach input, filter, reset, navigation and viewport listeners. */
+  /**
+   * Bind event listeners for input changes, filter clicks, reset button, navigation, and layout changes.
+   * The input event triggers a search when the user types a query.
+   * Filter clicks update the filter state and trigger a search.
+   * The reset button clears the query and filters.
+   * The popstate event handles browser navigation to restore state.
+   * Scroll and resize events reposition the loading indicator.
+   */
   bindEvents() {
     this.input.addEventListener("input", () => {
       this.state.query = this.input.value.trim();
@@ -82,73 +117,115 @@ class ESSmartSearch {
       this.scheduleSearch();
     });
 
+    // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
     document
       .querySelectorAll("fieldset[data-filter-group] .control")
       .forEach((button) => {
         button.addEventListener("click", () => this.handleFilterClick(button));
       });
 
+    // Bind click event to the reset button to clear the search state
     this.resetButton?.addEventListener("click", (event) => {
       event.preventDefault();
       this.reset();
     });
 
+    // Handle browser navigation events to restore state from the URL
     window.addEventListener("popstate", () => {
       this.readUrlState();
       this.renderFilterState();
       this.search();
     });
 
+    // Reposition the loading indicator when the user scrolls or resizes the window
     window.addEventListener("scroll", () => this.positionLoading(), {
       passive: true,
     });
+
+    // Reposition the loading indicator when the window is resized
     window.addEventListener("resize", () => this.positionLoading());
   }
 
-  /** @param {HTMLButtonElement} button The filter control that was clicked. */
+  /**
+   * Update filter state after a filter control is clicked.
+   *
+   * @param {HTMLButtonElement} button The clicked filter control.
+   */
   handleFilterClick(button) {
+    // Get the filter group and value from the clicked button's dataset
     const group = button.closest("fieldset[data-filter-group]")?.dataset
       .filterGroup;
+
+    // Get the value to toggle from the button's dataset
     const value = button.dataset.toggle;
 
+    // If either the group or value is missing, return
     if (!group || !value) {
       return;
     }
 
+    // Toggle the active state of the clicked button
     button.classList.toggle("mixitup-control-active");
+
+    // Update the filter state for the group based on the active buttons
     this.state.filters[group] = Array.from(
       document.querySelectorAll(
         `fieldset[data-filter-group="${CSS.escape(group)}"] .control.mixitup-control-active`,
       ),
     ).map((activeButton) => activeButton.dataset.toggle);
 
+    // If no active filters remain for the group, remove the group from the state
     if (!this.state.filters[group].length) {
       delete this.state.filters[group];
     }
 
+    // Reset the page number to 1 when filters change
     this.state.page = 1;
+
+    // Update the URL hash to reflect the new state
     this.writeUrlState();
+
+    // Update the reset button state based on whether a query or filter is active
     this.renderResetState();
+
+    // Perform a new search with the updated filter state
     this.search();
   }
 
-  /** Restore query, filters and page from the URL hash. */
+  /**
+   * Restore query, filters and page from the URL.
+   *
+   * The hash is used by the in-page controls. The query parameter is used by
+   * the site-wide search form, so both entry points share the same search flow.
+   */
   readUrlState() {
+    // Get the current URL hash and remove the leading '#' character
     const hash = window.location.hash.replace(/^#/, "");
     const nextState = { query: "", filters: {}, page: 1 };
 
+    // If the hash is empty, check for a query parameter in the URL search string
     if (!hash) {
+      nextState.query =
+        new URLSearchParams(window.location.search).get("q") || "";
       this.state = nextState;
       return;
     }
 
+    // Split the hash into key-value pairs and process each part
     hash.split("&").forEach((part) => {
+      // Find the index of the '=' separator in the part
       const separator = part.indexOf("=");
+
+      // If there is no '=' separator, skip this part
       if (separator < 0) return;
 
+      // Decode the key and value from the part
       const key = decodeURIComponent(part.slice(0, separator));
+
+      // Decode the value from the part, handling URL encoding
       const value = decodeURIComponent(part.slice(separator + 1));
 
+      // Update the nextState based on the key and value
       if (key === "textsearch") {
         nextState.query = value;
       } else if (key === "page") {
@@ -158,23 +235,36 @@ class ESSmartSearch {
       }
     });
 
+    // Update the current state with the nextState derived from the URL
     this.state = nextState;
   }
 
-  /** Serialise the current state into a shareable URL hash. */
+  /**
+   * Update the URL hash to reflect the current query, filters, and page.
+   * @returns {void}
+   */
   writeUrlState() {
+    // Build an array of key-value pairs for the URL hash
     const parts = [];
+
+    // Check if there are any active filters in the current state
     const hasFilters = Object.keys(this.state.filters).length > 0;
+
+    // Check if the current query meets the minimum length for searching
     const hasSearchableQuery =
       this.state.query.length >= this.minimumQueryLength;
+
+    // Check if the URL already has a query parameter for textsearch
     const urlHasQuery = window.location.hash.includes("textsearch=");
 
+    // If there is a searchable query, add it to the parts array for the URL hash
     if (hasSearchableQuery) {
       parts.push(`textsearch=${encodeURIComponent(this.state.query)}`);
     } else if (this.state.query && !hasFilters && !urlHasQuery) {
       return;
     }
 
+    // Add each filter group and its values to the parts array for the URL hash
     Object.entries(this.state.filters).forEach(([group, values]) => {
       if (values.length) {
         parts.push(
@@ -183,10 +273,16 @@ class ESSmartSearch {
       }
     });
 
+    // Add the current page number to the parts array for the URL hash
     parts.push(`page=${this.state.page}`);
+
+    // Construct the new URL hash from the parts array
     const hash = `#${parts.join("&")}`;
+
+    // Construct the full URL with the current pathname, search parameters, and new hash
     const url = `${window.location.pathname}${window.location.search}${hash}`;
 
+    // If the new URL is different from the current URL, update the browser history
     if (
       url !==
       `${window.location.pathname}${window.location.search}${window.location.hash}`
@@ -195,16 +291,24 @@ class ESSmartSearch {
     }
   }
 
-  /** Reflect the current state in the input and filter controls. */
+  /**
+   * Update the input value and filter button states to reflect the current search state.
+   * This ensures that the UI accurately represents the active query and filters.
+   */
   renderFilterState() {
+    // Update the input value and active class based on the current query state
     if (this.input) {
+      // Set the input value to the current query state
       this.input.value = this.state.query;
+
+      // Toggle the "mixitup-control-active" class on the input based on whether there is a query
       this.input.classList.toggle(
         "mixitup-control-active",
         Boolean(this.state.query),
       );
     }
 
+    // Update the active state of filter buttons based on the current filter state
     document
       .querySelectorAll("fieldset[data-filter-group] .control")
       .forEach((button) => {
@@ -216,48 +320,77 @@ class ESSmartSearch {
       });
   }
 
-  /** Toggle the reset button according to the current state. */
+  /**
+   * Update the reset button's active state based on whether there is an active query or any active filters.
+   * This provides visual feedback to the user that they can reset the search state.
+   */
   renderResetState() {
     this.resetButton?.classList.toggle("active", this.hasActiveState());
   }
 
-  /** Debounce text input before starting an API search. */
+  /**
+   * Schedule a search to be performed after a short delay, allowing for debouncing of rapid input changes.
+   * This prevents excessive API requests while the user is typing or changing filters.
+   */
   scheduleSearch() {
     clearTimeout(this.searchTimer);
     this.setLoading(true);
     this.searchTimer = setTimeout(() => this.search(), 300);
   }
 
-  /** Fetch matches for the current state and render them. */
+  /**
+   * Perform a search based on the current query and filter state.
+   * @returns {Promise<void>} Resolves when the search is complete.
+   */
   async search() {
+    // Determine the query to use for the search, ensuring it meets the minimum length requirement
     const query =
       this.state.query.length >= this.minimumQueryLength
         ? this.state.query
         : "";
+
+    // Determine if there are any active filters in the current state
     const hasFilters = Object.keys(this.state.filters).length > 0;
 
+    // If there is no query and no filters, show all products and stop loading
     if (!query && !hasFilters) {
+      // If debugging is enabled and there is a query that was skipped, log the skipped query and minimum length
       if (window.ESSS.debug && this.state.query) {
         console.info("[ES Smart Search] query skipped", {
           query: this.state.query,
           minimumQueryLength: this.minimumQueryLength,
         });
       }
+
+      // If there is no query and no filters, show all products and stop loading
       this.showAllProducts();
+
+      // Stop the loading indicator since there is no search to perform
       this.setLoading(false);
+
+      // Exit the search function early as there is nothing to search for
       return;
     }
 
+    // If there is an ongoing request, abort it before starting a new search
     this.requestController?.abort();
+
+    // Create a new AbortController for the current search request
     this.requestController = new AbortController();
+
+    // Store a reference to the current request controller for use in the fetch request
     const currentController = this.requestController;
+
+    // Show the loading indicator while the search request is in progress
     this.setLoading(true);
 
+    // Build the query parameters for the API request, including the search query and filters
     const params = new URLSearchParams({
       q: query,
       filters: JSON.stringify(this.state.filters),
     });
 
+    // Perform the API request to the ESSS endpoint with the constructed parameters
     try {
       const response = await fetch(`${ESSS.endpoint}?${params}`, {
         signal: currentController.signal,
@@ -267,17 +400,24 @@ class ESSmartSearch {
         throw new Error(`Smart search request failed: ${response.status}`);
       }
 
+      // Parse the JSON response from the API
       const data = await response.json();
+
+      // Render the search results and get the count of visible products
       const visibleProductCount = this.renderResults(
         data.matches,
         data.ranking,
       );
+
+      // Log the search query, parameters, response, and visible product count for debugging purposes
       this.logSearch(data, params, response, visibleProductCount);
     } catch (error) {
+      // If the error is not an AbortError, log the error to the console
       if (error.name !== "AbortError") {
         console.error("Smart search failed:", error);
       }
     } finally {
+      // If the current request controller is still the same and has not been aborted, stop the loading indicator
       if (
         this.requestController === currentController &&
         !currentController.signal.aborted
@@ -287,7 +427,14 @@ class ESSmartSearch {
     }
   }
 
-  /** Log the query, index details and ranking rationale for prototype demos. */
+  /**
+   * Log the search query, parameters, response, and visible product count for debugging purposes.
+   * @param {object} data The API response data.
+   * @param {URLSearchParams} params The query parameters used in the request.
+   * @param {Response} response The fetch response object.
+   * @param {number} visibleProductCount The count of visible products after rendering.
+   * @returns {void}
+   */
   logSearch(data, params, response, visibleProductCount) {
     if (!window.ESSS.debug) {
       return;
@@ -324,71 +471,99 @@ class ESSmartSearch {
    * @param {Array<object>} ranking Ranked API results with scores and IDs.
    */
   renderResults(matchIds, ranking = []) {
+    // Create a Set of matching batch IDs for quick lookup
     const matches = new Set(
       (Array.isArray(matchIds) ? matchIds : []).map(Number),
     );
+
+    // Create an array of ranked batch IDs from the ranking results
     const rankedIds = (Array.isArray(ranking) ? ranking : []).map((result) =>
       Number(result.id),
     );
+
+    // Create a Map to store the rank of each batch ID for sorting purposes
     const rankById = new Map(rankedIds.map((id, index) => [id, index]));
+
+    // Initialize a counter for the number of visible products after applying the search results
     let visibleCount = 0;
 
+    // Get all product list items (li elements) that are direct children of the product list
     const products = Array.from(
       this.productList.querySelectorAll(":scope > li"),
     );
 
+    // Iterate over each product card to determine its visibility based on the matching batch IDs
     products.forEach((product) => {
+      // Collect the parent batch ID and all child batch IDs for the current product card
       const ids = [
         product.dataset.id,
         ...Array.from(product.querySelectorAll("[data-id]")).map(
           (child) => child.dataset.id,
         ),
       ];
+
+      // Check if any of the product's batch IDs are present in the set of matching IDs
       const visible = ids.some(
         (id) => Number.isFinite(Number(id)) && matches.has(Number(id)),
       );
 
+      // Toggle the "es-smart-search-hidden" class on the product card based on its visibility
       product.classList.toggle("es-smart-search-hidden", !visible);
       if (visible) visibleCount += 1;
     });
 
+    // Sort the product cards based on their rank in the API results and their original order
     products.sort((left, right) => {
+      // Determine the rank of the left product card based on its batch IDs and the rankById map
       const leftRank = Math.min(
         ...this.getProductIds(left).map(
           (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
         ),
       );
+
+      // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
       const rightRank = Math.min(
         ...this.getProductIds(right).map(
           (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
         ),
       );
 
+      // If the ranks are different, return the difference to sort by rank
       if (leftRank !== rightRank) {
         return leftRank - rightRank;
       }
 
+      // If the ranks are the same, maintain the original order of the products in the DOM
       return (
         this.originalProductOrder.indexOf(left) -
         this.originalProductOrder.indexOf(right)
       );
     });
 
+    // Append the sorted product cards back to the product list in the new order
     products.forEach((product) => this.productList.appendChild(product));
 
+    // Update the stats element to show the number of matching products, or hide it if there are no matches
     if (this.stats) {
       this.stats.textContent = `${visibleCount} matching products`;
       this.stats.style.display = visibleCount ? "" : "none";
     }
 
+    // Update the no results element to show a message if there are no matching products, or hide it if there are matches
     if (this.noResults) {
       this.noResults.style.display = visibleCount ? "none" : "block";
     }
 
+    // Return the count of visible products after applying the search results
     return visibleCount;
   }
 
-  /** @param {HTMLElement} product @returns {number[]} Parent and child batch IDs. */
+  /**
+   * Return all batch IDs represented by a rendered product card.
+   *
+   * @param {HTMLElement} product Rendered product card.
+   * @returns {number[]} Parent and child batch IDs.
+   */
   getProductIds(product) {
     return [
       product.dataset.id,
@@ -400,21 +575,29 @@ class ESSmartSearch {
       .filter(Number.isFinite);
   }
 
-  /** Restore all product cards when no search state is active. */
+  /**
+   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
+   * This is called when the search query and filters are cleared, allowing the user to see all products again.
+   */
   showAllProducts() {
+    // Append the original product order back to the product list in the original order
     this.originalProductOrder.forEach((product) =>
       this.productList.appendChild(product),
     );
 
+    // Remove the "es-smart-search-hidden" class from all products to make them visible again
     this.originalProductOrder.forEach((product) => {
       product.classList.remove("es-smart-search-hidden");
     });
 
+    // Hide the "no results" message if it is currently displayed
     if (this.noResults) this.noResults.style.display = "none";
+
+    // Show the stats element if it is currently hidden
     if (this.stats) this.stats.style.display = "";
   }
 
-  /** Clear query, filters, URL state and product visibility. */
+  /** Clear query, filters, URL state, and product visibility. */
   reset() {
     this.state = { query: "", filters: {}, page: 1 };
     this.renderFilterState();
@@ -423,24 +606,47 @@ class ESSmartSearch {
     this.showAllProducts();
   }
 
-  /** @param {boolean} isLoading Whether the request overlay is visible. */
+  /**
+   * Toggle the request loading overlay and input busy state.
+   *
+   * @param {boolean} isLoading Whether the request is in progress.
+   */
   setLoading(isLoading) {
+    // If the loading indicator is active, reposition it to stay centered over the visible product area
     if (isLoading) this.positionLoading();
+
+    // Toggle the "is-active" class on the loading indicator based on whether a request is in progress
     this.loading?.classList.toggle("is-active", isLoading);
+
+    // Update the input's aria-busy attribute to indicate whether the input is currently busy with a request
     if (this.input)
       this.input.setAttribute("aria-busy", isLoading ? "true" : "false");
   }
 
-  /** Keep the loading overlay centred over the visible product area. */
+  /**
+   * Position the loading indicator over the visible product area, ensuring it is centered and sized correctly.
+   * @returns
+   */
   positionLoading() {
+    // If the loading indicator or product list is not available, exit the function early
     if (!this.loading || !this.productList) return;
 
+    // Get the bounding rectangle of the product list to determine its position and size
     const bounds = this.productList.getBoundingClientRect();
+
+    // Calculate the top, bottom, left, and right positions for the loading indicator, ensuring it stays within the viewport
     const top = Math.max(bounds.top, 0);
+
+    // Calculate the bottom position, ensuring it does not exceed the window's inner height
     const bottom = Math.min(bounds.bottom, window.innerHeight);
+
+    // Calculate the left position, ensuring it does not go below 0
     const left = Math.max(bounds.left, 0);
+
+    // Calculate the right position, ensuring it does not exceed the window's inner width
     const right = Math.min(bounds.right, window.innerWidth);
 
+    // Set the loading indicator's position and size based on the calculated values
     this.loading.style.top = `${top}px`;
     this.loading.style.left = `${left}px`;
     this.loading.style.width = `${Math.max(right - left, 0)}px`;
@@ -448,6 +654,7 @@ class ESSmartSearch {
   }
 }
 
+// Initialize the ESSmartSearch instance when the DOM content is fully loaded, ensuring that the search functionality is ready to use.
 document.addEventListener(
   "DOMContentLoaded",
   () => {
