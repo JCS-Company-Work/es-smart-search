@@ -53,6 +53,11 @@ final class SearchTest extends TestCase {
             ->once()
             ->with( 'rest_api_init', [ $search, 'register_routes' ] );
 
+        Functions\expect( 'add_action' )
+            ->once()
+            ->with( 'template_redirect', [ $search, 'redirect_query_search' ] );
+
         $search->register();
     }
+
 }

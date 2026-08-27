@@ -8,6 +8,7 @@ class Search {
 
     public function register(): void {
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
+        add_action( 'template_redirect', [ $this, 'redirect_query_search' ] );
     }
 
     public function register_routes(): void {
@@ -22,6 +23,35 @@ class Search {
                 ],
             ],
         ] );
+    }
+
+    /**
+     * Redirects search queries from the batches page to the search results page.
+     *
+     * @return void
+     */
+    public function redirect_query_search(): void {
+
+        // Only redirect on the batches page with a search query.
+        if ( ! is_page_template( 'batches.php' ) ) {
+            return;
+        }
+
+        // Only redirect when the search query is present.
+        if ( empty( $_GET['textsearch'] ) ) {
+            return;
+        }
+
+        // Sanitize the search query and redirect to the search results page with the query as a URL parameter.
+        $query = sanitize_text_field( wp_unslash( $_GET['textsearch'] ) );
+
+        // Redirect to the search results page with the query as a URL parameter.
+        wp_safe_redirect(
+            home_url( '/collections/search-results/#textsearch=' . rawurlencode( $query ) . '&page=1' )
+        );
+
+        // Exit to prevent further execution after the redirect.
+        exit;
     }
 
     /**

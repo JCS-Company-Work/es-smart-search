@@ -203,11 +203,26 @@ class ESSmartSearch {
     const hash = window.location.hash.replace(/^#/, "");
     const nextState = { query: "", filters: {}, page: 1 };
 
-    // If the hash is empty, check for a query parameter in the URL search string
+    // If there is no hash, check for a query parameter in the URL search parameters
     if (!hash) {
-      nextState.query =
-        new URLSearchParams(window.location.search).get("q") || "";
+      // Use URLSearchParams to parse the query parameters from the current URL
+      const params = new URLSearchParams(window.location.search);
+
+      // Get the "textsearch" parameter from the query parameters, or default to an empty string
+      nextState.query = params.get("textsearch") || "";
+
+      // Get the "page" parameter from the query parameters, or default to 1
       this.state = nextState;
+
+      // If there is a query parameter, update the URL hash to reflect the query and reset the page number to 1
+      if (nextState.query) {
+        const cleanUrl = `${window.location.pathname}#textsearch=${encodeURIComponent(
+          nextState.query,
+        )}&page=1`;
+
+        window.history.replaceState(null, "", cleanUrl);
+      }
+
       return;
     }
 
