@@ -138,9 +138,10 @@ The following observations from the original brief are the starting evaluation s
 The plugin uses Composer to load PHP classes from the `EsSmartSearch` namespace.
 
 - `es-smart-search.php` is the WordPress plugin entry point. It defines plugin constants, loads Composer, and starts the plugin.
-- `src/Plugin.php` is the central starting point. Its `boot()` method starts each plugin feature.
+- `src/Plugin.php` is the central starting point. Its `boot()` method starts each plugin feature and keeps startup in one place.
 - `src/Assets.php` loads the front-end JavaScript and stylesheet on supported pages.
 - `src/Search.php` registers the REST route and contains the current search, filtering, indexing, and ranking code.
+- `src/SearchIndex.php` owns the hooks that invalidate the cached search index when batch data changes.
 - `assets/js/es-smart-search.js` manages the search page in the browser.
 - `assets/css/es-smart-search.css` contains search-specific styles.
 
@@ -149,6 +150,8 @@ The plugin depends on WordPress, WooCommerce, Advanced Custom Fields (`get_field
 ## Tests
 
 PHPUnit tests live in `tests/php`. They use Brain Monkey to test WordPress hook registration without loading a full WordPress site.
+
+The current tests cover the `Assets`, `Search`, and `SearchIndex` registration hooks. The `SearchIndex` tests also check that batch changes clear the cache while changes to other post types do not.
 
 Install development dependencies after cloning the plugin:
 
