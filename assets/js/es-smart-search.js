@@ -3,12 +3,25 @@ class ESSmartSearch {
   constructor() {
     // Current search state, including query, filters, and page number.
     this.state = {
+      // Current search query string
       query: "",
+
+      // Object to hold current filter state
       filters: {},
+
+      // Current page number for pagination
       page: 1,
+
+      // Object to hold pagination information, including total pages and current page
+      pagination: {
+        pages: {},
+      },
     };
 
+    this.paginationContainer = null;
+
     // Controller properties for DOM elements, timers, and request state.
+
     this.input = null;
     this.productList = null;
     this.stats = null;
@@ -17,8 +30,15 @@ class ESSmartSearch {
     this.loading = null;
     this.requestController = null;
     this.searchTimer = null;
+
+    // Minimum query length required to trigger a search request.
     this.minimumQueryLength = 3;
+
+    // Store the original product order for restoring when no search is active
     this.originalProductOrder = [];
+
+    // Array to hold parent product cards for pagination purposes
+    this.parentProducts = [];
   }
 
   /** Find the search UI, restore URL state, and start active searches. */
@@ -28,6 +48,7 @@ class ESSmartSearch {
 
     // Get product list from DOM
     this.productList = document.querySelector(".product-list");
+    this.paginationContainer = document.querySelector(".mixitup-page-list");
 
     // Get stats element from DOM
     this.stats = document.querySelector(".mixitup-page-stats");
@@ -105,7 +126,14 @@ class ESSmartSearch {
   readUrlState() {
     // Get the current URL hash and remove the leading '#' character
     const hash = window.location.hash.replace(/^#/, "");
-    const nextState = { query: "", filters: {}, page: 1 };
+    const nextState = {
+      query: "",
+      filters: {},
+      page: 1,
+      pagination: {
+        pages: {},
+      },
+    };
 
     // If there is no hash, check for a query parameter in the URL search parameters
     if (!hash) {
@@ -375,7 +403,14 @@ class ESSmartSearch {
 
   /** Clear query, filters, URL state, and product visibility. */
   reset() {
-    this.state = { query: "", filters: {}, page: 1 };
+    this.state = {
+      query: "",
+      filters: {},
+      page: 1,
+      pagination: {
+        pages: {},
+      },
+    };
     this.updateQueryDisplay();
     this.renderFilterState();
     this.renderResetState();
@@ -411,25 +446,11 @@ class ESSmartSearch {
       this.productList.querySelectorAll(":scope > li"),
     );
 
-    // Iterate over each product card to determine its visibility based on the matching batch IDs
-    products.forEach((product) => {
-      // Collect the parent batch ID and all child batch IDs for the current product card
-      const ids = [
-        product.dataset.id,
-        ...Array.from(product.querySelectorAll("[data-id]")).map(
-          (child) => child.dataset.id,
-        ),
-      ];
+    // Get all product list items (li elements) that are direct children of the product list
+    const matchingParents = this.getMatchingParents(products, matches);
 
-      // Check if any of the product's batch IDs are present in the set of matching IDs
-      const visible = ids.some(
-        (id) => Number.isFinite(Number(id)) && matches.has(Number(id)),
-      );
-
-      // Toggle the "es-smart-search-hidden" class on the product card based on its visibility
-      product.classList.toggle("es-smart-search-hidden", !visible);
-      if (visible) visibleCount += 1;
-    });
+    // Paginate the matching parent product cards and get the items for the current page
+    this.paginateMatchingProducts(matchingParents);
 
     // Sort the product cards based on their rank in the API results and their original order
     products.sort((left, right) => {
@@ -462,10 +483,19 @@ class ESSmartSearch {
     // Append the sorted product cards back to the product list in the new order
     products.forEach((product) => this.productList.appendChild(product));
 
-    // Update the stats element to show the number of matching products, or hide it if there are no matches
+    // Render the current page of parent product cards based on the current state and pagination
+    this.renderCurrentPage();
+
+    // Get the count of visible products after applying the search results and update the visibleCount variable
+    visibleCount = this.getCurrentPageItems().length;
+
+    // Update the pagination buttons to reflect the current page and total pages
+    this.addPaginationButtons();
+
+    // Update the stats element to show the number of visible products and the current page range
     if (this.stats) {
-      this.stats.textContent = `${visibleCount} matching`;
-      this.stats.style.display = visibleCount ? "" : "none";
+      this.stats.style.display = this.parentProducts.length ? "" : "none";
+      this.updatePaginationCount();
     }
 
     // Update the no results element to show a message if there are no matching products, or hide it if there are matches
@@ -497,6 +527,281 @@ class ESSmartSearch {
 
     // Show the stats element if it is currently hidden
     if (this.stats) this.stats.style.display = "";
+  }
+
+  // =========================================================================
+  // PAGINATION
+  // =========================================================================
+
+  /**
+   * Return the number of parent product cards to show on each page.
+   *
+   * The page size follows the existing responsive pagination rules used by
+   * the previous TileFilter implementation.
+   *
+   * @returns {number} Number of parent cards per page.
+   */
+  itemsPerPage() {
+    // Get current window width
+    const width = window.innerWidth;
+
+    // Determine number of items to show per page
+    if (width < 768) return 16;
+    if (width < 1365) return 30;
+    if (width < 1800) return 36;
+
+    // For very large screens, show 40 items per page
+    return 40;
+  }
+
+  /**
+   * Paginate an array of items into pages based on the current itemsPerPage setting.
+   * @param {Array} items Array of items to paginate.
+   * @returns {Object} An object where keys are page numbers and values are arrays of items for that page.
+   */
+  paginate(items) {
+    // Get the number of items to show per page
+    const perPage = this.itemsPerPage();
+
+    // Reduce the items array into an object where keys are page numbers and values are arrays of items for that page
+    return items.reduce((pages, item, index) => {
+      // Calculate the page number for the current item based on its index and the number of items per page
+      const pageNumber = Math.floor(index / perPage) + 1;
+
+      // Create a key for the current page in the pages object
+      const pageKey = `page${pageNumber}`;
+
+      // Initialize the array for the current page if it doesn't exist yet
+      pages[pageKey] ??= [];
+
+      // Add the current item to the array for the current page
+      pages[pageKey].push(item);
+
+      // Return the updated pages object for the next iteration
+      return pages;
+    }, {});
+  }
+
+  /**
+   * Paginate the matching parent product cards and return a Set of items for the current page.
+   * @param {Array} matchingParents Array of matching parent product cards.
+   * @returns {Set} Set of items for the current page.
+   */
+  paginateMatchingProducts(matchingParents) {
+    this.parentProducts = matchingParents;
+    this.state.pagination.pages = this.paginate(matchingParents);
+
+    this.state.page = Math.min(
+      this.state.page,
+      Object.keys(this.state.pagination.pages).length || 1,
+    );
+
+    return new Set(this.getCurrentPageItems());
+  }
+
+  /**
+   * Get the items for the current page based on the current state and pagination.
+   * @returns {Array} Array of items for the current page.
+   */
+  getCurrentPageItems() {
+    const pageKey = `page${this.state.page}`;
+
+    return this.state.pagination.pages[pageKey] || [];
+  }
+
+  /**
+   * Get the parent product elements that match the given set of matching product IDs.
+   * @param {Array} products Array of product elements to filter.
+   * @param {Set} matches Set of matching product IDs.
+   * @returns {Array} Array of matching parent product elements.
+   */
+  getMatchingParents(products, matches) {
+    // Filter the products array to find the parent product elements that match the given set of matching product IDs
+    return products.filter((product) => {
+      // Collect the parent batch ID and all child batch IDs for the current product card
+      const ids = [
+        product.dataset.id,
+        ...Array.from(product.querySelectorAll("[data-id]")).map(
+          (child) => child.dataset.id,
+        ),
+      ];
+
+      // Check if any of the product's batch IDs are present in the set of matching IDs
+      return ids.some(
+        (id) => Number.isFinite(Number(id)) && matches.has(Number(id)),
+      );
+    });
+  }
+
+  /**
+   * Update the pagination count display based on the current page and total number of parent product cards.
+   * @returns {void} Does not return a value.
+   */
+  updatePaginationCount() {
+    // If the stats element is not available, exit
+    if (!this.stats) {
+      return;
+    }
+
+    // Get the total number of parent product cards
+    const total = this.parentProducts.length;
+
+    // Get the number of items to show per page based on the current window width
+    const perPage = this.itemsPerPage();
+
+    // Calculate the starting index of the current page based on the total number of items, current page number, and items per page
+    const start = total ? (this.state.page - 1) * perPage + 1 : 0;
+
+    // Calculate the ending index of the current page based on the total number of items, current page number, and items per page
+    const end = Math.min(this.state.page * perPage, total);
+
+    // Update the stats element to show the range of items being displayed and the total number of items, or show "0 of 0" if there are no items
+    this.stats.textContent = total
+      ? `${start} to ${end} of ${total}`
+      : "0 of 0";
+  }
+
+  /**
+   * Render the current page of parent product cards based on the current state and pagination.
+   * This method toggles the visibility of product cards based on whether they are in the current page items and are parent products.
+   * It ensures that only the relevant products for the current page are displayed to the user.
+   * @returns {void}
+   */
+  renderCurrentPage() {
+    // Get the set of items for the current page based on the current state and pagination
+    const currentPageItems = new Set(this.getCurrentPageItems());
+
+    // Loop over original product order and toggle visibility based on whether the product is in the current page items and is a parent product
+    this.originalProductOrder.forEach((product) => {
+      const visible =
+        this.parentProducts.includes(product) && currentPageItems.has(product);
+
+      // Toggle the "es-smart-search-hidden" class on the product card based on its visibility
+      product.classList.toggle("es-smart-search-hidden", !visible);
+    });
+  }
+
+  /**
+   * Add pagination buttons to the pagination container based on the current state and total pages.
+   * @returns {void} Does not return a value.
+   */
+  addPaginationButtons() {
+    const container = this.paginationContainer;
+    const totalPages = Object.keys(this.state.pagination.pages).length;
+    const currentPage = this.state.page;
+
+    if (!container || totalPages <= 1) {
+      return;
+    }
+
+    container.innerHTML = "";
+
+    container.appendChild(
+      this._createPaginationButton("«", "prev", "mixitup-control-prev"),
+    );
+
+    this._getCondensedPages(totalPages, currentPage).forEach((page) => {
+      const isFirst = page === 1;
+      const isLast = page === totalPages;
+
+      container.appendChild(
+        this._createPaginationButton(
+          isFirst ? "First" : isLast ? "Last" : page,
+          page,
+          page === currentPage
+            ? "mixitup-control mixitup-control-active"
+            : "mixitup-control",
+        ),
+      );
+    });
+
+    container.appendChild(
+      this._createPaginationButton("»", "next", "mixitup-control-next"),
+    );
+  }
+
+  /**
+   *
+   * determine which pages to show
+   * includes first, last, current, neighbors, and extra pages at edges
+   * @param {*} total
+   * @param {*} current
+   * @returns
+   */
+  _getCondensedPages(total, current) {
+    const pages = new Set([1, total, current]);
+
+    // previous page
+    if (current > 1) pages.add(current - 1);
+
+    // next page
+    if (current < total) pages.add(current + 1);
+
+    // If on first page, add extra neighbors
+    if (current === 1 && total > 3) pages.add(2).add(3);
+
+    // If on last page, add extra neighbors
+    if (current === total && total > 3) pages.add(total - 1).add(total - 2);
+
+    // return sorted array
+    return [...pages].sort((a, b) => a - b);
+  }
+
+  /**
+   *
+   * create a button element
+   * attaches click handler to update pagination state and scroll to top
+   * @param {string} label
+   * @param {*} page
+   * @param {string} extraClasses
+   * @returns
+   */
+  _createPaginationButton(label, page, extraClasses = "") {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.className = `mixitup-control ${extraClasses}`.trim();
+    btn.dataset.page = page;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      const newPage = this._resolvePage(page);
+
+      // Scroll smoothly to top
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // Update state
+      this.state.page = newPage;
+
+      // Update URL
+      this.writeUrlState();
+
+      // Render current page
+      this.renderCurrentPage();
+
+      // Update pagination buttons
+      this.addPaginationButtons();
+
+      // Update pagination count
+      this.updatePaginationCount();
+    });
+
+    return btn;
+  }
+
+  /**
+   * resolve page number from button input
+   * handles 'prev', 'next', or numeric pages
+   * @param {string|number} page
+   * @returns {number} The page number to navigate to
+   */
+  _resolvePage(page) {
+    const { page: current } = this.state.pagination;
+    const total = Object.keys(this.state.pagination.pages).length;
+    if (page === "prev") return Math.max(current - 1, 1);
+    if (page === "next") return Math.min(current + 1, total);
+    return parseInt(page, 10);
   }
 
   // =========================================================================
