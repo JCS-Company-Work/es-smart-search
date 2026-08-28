@@ -32,6 +32,12 @@ class ESSmartSearch {
     // Get stats element from DOM
     this.stats = document.querySelector(".mixitup-page-stats");
 
+    // Get query display element from DOM, this will show the current search query
+    this.queryDisplay =
+      window.location.pathname === "/collections/search-results/"
+        ? document.querySelector(".banner-headline")
+        : document.querySelector(".es-smart-search-query");
+
     // Get no results element from DOM this is the element that will be displayed when there are no results
     this.noResults = document.querySelector(".no-results");
 
@@ -77,6 +83,10 @@ class ESSmartSearch {
     }
   }
 
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
+
   /**
    * Check if there is an active search query or any active filters.
    *
@@ -84,112 +94,6 @@ class ESSmartSearch {
    */
   hasActiveState() {
     return Boolean(this.state.query || Object.keys(this.state.filters).length);
-  }
-
-  /**
-   * Create a loading indicator element and append it to the product list.
-   * The loading indicator is shown while an API request is in progress.
-   */
-  createLoadingIndicator() {
-    this.loading = document.createElement("div");
-    this.loading.className = "es-smart-search-loading";
-    this.loading.setAttribute("role", "status");
-    this.loading.setAttribute("aria-live", "polite");
-    this.loading.innerHTML =
-      '<span aria-hidden="true"></span><span class="screen-reader-text">Searching</span>';
-    this.productList.appendChild(this.loading);
-  }
-
-  /**
-   * Bind event listeners for input changes, filter clicks, reset button, navigation, and layout changes.
-   * The input event triggers a search when the user types a query.
-   * Filter clicks update the filter state and trigger a search.
-   * The reset button clears the query and filters.
-   * The popstate event handles browser navigation to restore state.
-   * Scroll and resize events reposition the loading indicator.
-   */
-  bindEvents() {
-    this.input.addEventListener("input", () => {
-      this.state.query = this.input.value.trim();
-      this.state.page = 1;
-      this.writeUrlState();
-      this.renderResetState();
-      this.scheduleSearch();
-    });
-
-    // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
-    document
-      .querySelectorAll("fieldset[data-filter-group] .control")
-      .forEach((button) => {
-        button.addEventListener("click", () => this.handleFilterClick(button));
-      });
-
-    // Bind click event to the reset button to clear the search state
-    this.resetButton?.addEventListener("click", (event) => {
-      event.preventDefault();
-      this.reset();
-    });
-
-    // Handle browser navigation events to restore state from the URL
-    window.addEventListener("popstate", () => {
-      this.readUrlState();
-      this.renderFilterState();
-      this.search();
-    });
-
-    // Reposition the loading indicator when the user scrolls or resizes the window
-    window.addEventListener("scroll", () => this.positionLoading(), {
-      passive: true,
-    });
-
-    // Reposition the loading indicator when the window is resized
-    window.addEventListener("resize", () => this.positionLoading());
-  }
-
-  /**
-   * Update filter state after a filter control is clicked.
-   *
-   * @param {HTMLButtonElement} button The clicked filter control.
-   */
-  handleFilterClick(button) {
-    // Get the filter group and value from the clicked button's dataset
-    const group = button.closest("fieldset[data-filter-group]")?.dataset
-      .filterGroup;
-
-    // Get the value to toggle from the button's dataset
-    const value = button.dataset.toggle;
-
-    // If either the group or value is missing, return
-    if (!group || !value) {
-      return;
-    }
-
-    // Toggle the active state of the clicked button
-    button.classList.toggle("mixitup-control-active");
-
-    // Update the filter state for the group based on the active buttons
-    this.state.filters[group] = Array.from(
-      document.querySelectorAll(
-        `fieldset[data-filter-group="${CSS.escape(group)}"] .control.mixitup-control-active`,
-      ),
-    ).map((activeButton) => activeButton.dataset.toggle);
-
-    // If no active filters remain for the group, remove the group from the state
-    if (!this.state.filters[group].length) {
-      delete this.state.filters[group];
-    }
-
-    // Reset the page number to 1 when filters change
-    this.state.page = 1;
-
-    // Update the URL hash to reflect the new state
-    this.writeUrlState();
-
-    // Update the reset button state based on whether a query or filter is active
-    this.renderResetState();
-
-    // Perform a new search with the updated filter state
-    this.search();
   }
 
   /**
@@ -306,6 +210,117 @@ class ESSmartSearch {
     }
   }
 
+  // =========================================================================
+  // EVENT HANDLING
+  // =========================================================================
+
+  /**
+   * Bind event listeners for input changes, filter clicks, reset button, navigation, and layout changes.
+   * The input event triggers a search when the user types a query.
+   * Filter clicks update the filter state and trigger a search.
+   * The reset button clears the query and filters.
+   * The popstate event handles browser navigation to restore state.
+   * Scroll and resize events reposition the loading indicator.
+   */
+  bindEvents() {
+    this.input.addEventListener("input", () => {
+      this.state.query = this.input.value.trim();
+      this.updateQueryDisplay();
+      this.state.page = 1;
+      this.writeUrlState();
+      this.renderResetState();
+      this.scheduleSearch();
+    });
+
+    // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
+    document
+      .querySelectorAll("fieldset[data-filter-group] .control")
+      .forEach((button) => {
+        button.addEventListener("click", () => this.handleFilterClick(button));
+      });
+
+    // Bind click event to the reset button to clear the search state
+    this.resetButton?.addEventListener("click", (event) => {
+      event.preventDefault();
+      this.reset();
+    });
+
+    // Handle browser navigation events to restore state from the URL
+    window.addEventListener("popstate", () => {
+      this.readUrlState();
+      this.renderFilterState();
+      this.search();
+    });
+
+    // Reposition the loading indicator when the user scrolls or resizes the window
+    window.addEventListener("scroll", () => this.positionLoading(), {
+      passive: true,
+    });
+
+    // Reposition the loading indicator when the window is resized
+    window.addEventListener("resize", () => this.positionLoading());
+  }
+
+  /**
+   * Update filter state after a filter control is clicked.
+   *
+   * @param {HTMLButtonElement} button The clicked filter control.
+   */
+  handleFilterClick(button) {
+    // Get the filter group and value from the clicked button's dataset
+    const group = button.closest("fieldset[data-filter-group]")?.dataset
+      .filterGroup;
+
+    // Get the value to toggle from the button's dataset
+    const value = button.dataset.toggle;
+
+    // If either the group or value is missing, return
+    if (!group || !value) {
+      return;
+    }
+
+    // Toggle the active state of the clicked button
+    button.classList.toggle("mixitup-control-active");
+
+    // Update the filter state for the group based on the active buttons
+    this.state.filters[group] = Array.from(
+      document.querySelectorAll(
+        `fieldset[data-filter-group="${CSS.escape(group)}"] .control.mixitup-control-active`,
+      ),
+    ).map((activeButton) => activeButton.dataset.toggle);
+
+    // If no active filters remain for the group, remove the group from the state
+    if (!this.state.filters[group].length) {
+      delete this.state.filters[group];
+    }
+
+    // Reset the page number to 1 when filters change
+    this.state.page = 1;
+
+    // Update the URL hash to reflect the new state
+    this.writeUrlState();
+
+    // Update the reset button state based on whether a query or filter is active
+    this.renderResetState();
+
+    // Perform a new search with the updated filter state
+    this.search();
+  }
+
+  /**
+   * Schedule a search to be performed after a short delay, allowing for debouncing of rapid input changes.
+   * This prevents excessive API requests while the user is typing or changing filters.
+   */
+  scheduleSearch() {
+    clearTimeout(this.searchTimer);
+    this.setLoading(true);
+    this.searchTimer = setTimeout(() => this.search(), 300);
+  }
+
+  // =========================================================================
+  // DISPLAY UPDATES
+  // =========================================================================
+
   /**
    * Update the input value and filter button states to reflect the current search state.
    * This ensures that the UI accurately represents the active query and filters.
@@ -315,6 +330,7 @@ class ESSmartSearch {
     if (this.input) {
       // Set the input value to the current query state
       this.input.value = this.state.query;
+      this.updateQueryDisplay();
 
       // Toggle the "mixitup-control-active" class on the input based on whether there is a query
       this.input.classList.toggle(
@@ -336,6 +352,20 @@ class ESSmartSearch {
   }
 
   /**
+   * Update the query display element with the current search query.
+   * @returns {void}
+   */
+  updateQueryDisplay() {
+    // If the query display element is not available, exit
+    if (!this.queryDisplay) return;
+
+    // Update the query display text based on the current search query
+    this.queryDisplay.textContent = this.state.query
+      ? `Search Results for "${this.state.query}"`
+      : "";
+  }
+
+  /**
    * Update the reset button's active state based on whether there is an active query or any active filters.
    * This provides visual feedback to the user that they can reset the search state.
    */
@@ -343,15 +373,135 @@ class ESSmartSearch {
     this.resetButton?.classList.toggle("active", this.hasActiveState());
   }
 
-  /**
-   * Schedule a search to be performed after a short delay, allowing for debouncing of rapid input changes.
-   * This prevents excessive API requests while the user is typing or changing filters.
-   */
-  scheduleSearch() {
-    clearTimeout(this.searchTimer);
-    this.setLoading(true);
-    this.searchTimer = setTimeout(() => this.search(), 300);
+  /** Clear query, filters, URL state, and product visibility. */
+  reset() {
+    this.state = { query: "", filters: {}, page: 1 };
+    this.updateQueryDisplay();
+    this.renderFilterState();
+    this.renderResetState();
+    this.writeUrlState();
+    this.showAllProducts();
   }
+
+  /**
+   * Apply ranked visibility and order to the rendered product cards.
+   *
+   * @param {Array<number|string>} matchIds Batch IDs returned by the API.
+   * @param {Array<object>} ranking Ranked API results with scores and IDs.
+   */
+  renderResults(matchIds, ranking = []) {
+    // Create a Set of matching batch IDs for quick lookup
+    const matches = new Set(
+      (Array.isArray(matchIds) ? matchIds : []).map(Number),
+    );
+
+    // Create an array of ranked batch IDs from the ranking results
+    const rankedIds = (Array.isArray(ranking) ? ranking : []).map((result) =>
+      Number(result.id),
+    );
+
+    // Create a Map to store the rank of each batch ID for sorting purposes
+    const rankById = new Map(rankedIds.map((id, index) => [id, index]));
+
+    // Initialize a counter for the number of visible products after applying the search results
+    let visibleCount = 0;
+
+    // Get all product list items (li elements) that are direct children of the product list
+    const products = Array.from(
+      this.productList.querySelectorAll(":scope > li"),
+    );
+
+    // Iterate over each product card to determine its visibility based on the matching batch IDs
+    products.forEach((product) => {
+      // Collect the parent batch ID and all child batch IDs for the current product card
+      const ids = [
+        product.dataset.id,
+        ...Array.from(product.querySelectorAll("[data-id]")).map(
+          (child) => child.dataset.id,
+        ),
+      ];
+
+      // Check if any of the product's batch IDs are present in the set of matching IDs
+      const visible = ids.some(
+        (id) => Number.isFinite(Number(id)) && matches.has(Number(id)),
+      );
+
+      // Toggle the "es-smart-search-hidden" class on the product card based on its visibility
+      product.classList.toggle("es-smart-search-hidden", !visible);
+      if (visible) visibleCount += 1;
+    });
+
+    // Sort the product cards based on their rank in the API results and their original order
+    products.sort((left, right) => {
+      // Determine the rank of the left product card based on its batch IDs and the rankById map
+      const leftRank = Math.min(
+        ...this.getProductIds(left).map(
+          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
+        ),
+      );
+
+      // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
+      const rightRank = Math.min(
+        ...this.getProductIds(right).map(
+          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
+        ),
+      );
+
+      // If the ranks are different, return the difference to sort by rank
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      // If the ranks are the same, maintain the original order of the products in the DOM
+      return (
+        this.originalProductOrder.indexOf(left) -
+        this.originalProductOrder.indexOf(right)
+      );
+    });
+
+    // Append the sorted product cards back to the product list in the new order
+    products.forEach((product) => this.productList.appendChild(product));
+
+    // Update the stats element to show the number of matching products, or hide it if there are no matches
+    if (this.stats) {
+      this.stats.textContent = `${visibleCount} matching`;
+      this.stats.style.display = visibleCount ? "" : "none";
+    }
+
+    // Update the no results element to show a message if there are no matching products, or hide it if there are matches
+    if (this.noResults) {
+      this.noResults.style.display = visibleCount ? "none" : "block";
+    }
+
+    // Return the count of visible products after applying the search results
+    return visibleCount;
+  }
+
+  /**
+   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
+   * This is called when the search query and filters are cleared, allowing the user to see all products again.
+   */
+  showAllProducts() {
+    // Append the original product order back to the product list in the original order
+    this.originalProductOrder.forEach((product) =>
+      this.productList.appendChild(product),
+    );
+
+    // Remove the "es-smart-search-hidden" class from all products to make them visible again
+    this.originalProductOrder.forEach((product) => {
+      product.classList.remove("es-smart-search-hidden");
+    });
+
+    // Hide the "no results" message if it is currently displayed
+    if (this.noResults) this.noResults.style.display = "none";
+
+    // Show the stats element if it is currently hidden
+    if (this.stats) this.stats.style.display = "";
+  }
+
+  // =========================================================================
+  // SEARCH REQUEST
+  // =========================================================================
 
   /**
    * Perform a search based on the current query and filter state.
@@ -479,146 +629,22 @@ class ESSmartSearch {
     console.groupEnd();
   }
 
-  /**
-   * Apply ranked visibility and order to the rendered product cards.
-   *
-   * @param {Array<number|string>} matchIds Batch IDs returned by the API.
-   * @param {Array<object>} ranking Ranked API results with scores and IDs.
-   */
-  renderResults(matchIds, ranking = []) {
-    // Create a Set of matching batch IDs for quick lookup
-    const matches = new Set(
-      (Array.isArray(matchIds) ? matchIds : []).map(Number),
-    );
-
-    // Create an array of ranked batch IDs from the ranking results
-    const rankedIds = (Array.isArray(ranking) ? ranking : []).map((result) =>
-      Number(result.id),
-    );
-
-    // Create a Map to store the rank of each batch ID for sorting purposes
-    const rankById = new Map(rankedIds.map((id, index) => [id, index]));
-
-    // Initialize a counter for the number of visible products after applying the search results
-    let visibleCount = 0;
-
-    // Get all product list items (li elements) that are direct children of the product list
-    const products = Array.from(
-      this.productList.querySelectorAll(":scope > li"),
-    );
-
-    // Iterate over each product card to determine its visibility based on the matching batch IDs
-    products.forEach((product) => {
-      // Collect the parent batch ID and all child batch IDs for the current product card
-      const ids = [
-        product.dataset.id,
-        ...Array.from(product.querySelectorAll("[data-id]")).map(
-          (child) => child.dataset.id,
-        ),
-      ];
-
-      // Check if any of the product's batch IDs are present in the set of matching IDs
-      const visible = ids.some(
-        (id) => Number.isFinite(Number(id)) && matches.has(Number(id)),
-      );
-
-      // Toggle the "es-smart-search-hidden" class on the product card based on its visibility
-      product.classList.toggle("es-smart-search-hidden", !visible);
-      if (visible) visibleCount += 1;
-    });
-
-    // Sort the product cards based on their rank in the API results and their original order
-    products.sort((left, right) => {
-      // Determine the rank of the left product card based on its batch IDs and the rankById map
-      const leftRank = Math.min(
-        ...this.getProductIds(left).map(
-          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
-        ),
-      );
-
-      // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
-      const rightRank = Math.min(
-        ...this.getProductIds(right).map(
-          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
-        ),
-      );
-
-      // If the ranks are different, return the difference to sort by rank
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
-
-      // If the ranks are the same, maintain the original order of the products in the DOM
-      return (
-        this.originalProductOrder.indexOf(left) -
-        this.originalProductOrder.indexOf(right)
-      );
-    });
-
-    // Append the sorted product cards back to the product list in the new order
-    products.forEach((product) => this.productList.appendChild(product));
-
-    // Update the stats element to show the number of matching products, or hide it if there are no matches
-    if (this.stats) {
-      this.stats.textContent = `${visibleCount} matching products`;
-      this.stats.style.display = visibleCount ? "" : "none";
-    }
-
-    // Update the no results element to show a message if there are no matching products, or hide it if there are matches
-    if (this.noResults) {
-      this.noResults.style.display = visibleCount ? "none" : "block";
-    }
-
-    // Return the count of visible products after applying the search results
-    return visibleCount;
-  }
+  // =========================================================================
+  // LOADING INDICATOR
+  // =========================================================================
 
   /**
-   * Return all batch IDs represented by a rendered product card.
-   *
-   * @param {HTMLElement} product Rendered product card.
-   * @returns {number[]} Parent and child batch IDs.
+   * Create a loading indicator element and append it to the product list.
+   * The loading indicator is shown while an API request is in progress.
    */
-  getProductIds(product) {
-    return [
-      product.dataset.id,
-      ...Array.from(product.querySelectorAll("[data-id]")).map(
-        (child) => child.dataset.id,
-      ),
-    ]
-      .map(Number)
-      .filter(Number.isFinite);
-  }
-
-  /**
-   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
-   * This is called when the search query and filters are cleared, allowing the user to see all products again.
-   */
-  showAllProducts() {
-    // Append the original product order back to the product list in the original order
-    this.originalProductOrder.forEach((product) =>
-      this.productList.appendChild(product),
-    );
-
-    // Remove the "es-smart-search-hidden" class from all products to make them visible again
-    this.originalProductOrder.forEach((product) => {
-      product.classList.remove("es-smart-search-hidden");
-    });
-
-    // Hide the "no results" message if it is currently displayed
-    if (this.noResults) this.noResults.style.display = "none";
-
-    // Show the stats element if it is currently hidden
-    if (this.stats) this.stats.style.display = "";
-  }
-
-  /** Clear query, filters, URL state, and product visibility. */
-  reset() {
-    this.state = { query: "", filters: {}, page: 1 };
-    this.renderFilterState();
-    this.renderResetState();
-    this.writeUrlState();
-    this.showAllProducts();
+  createLoadingIndicator() {
+    this.loading = document.createElement("div");
+    this.loading.className = "es-smart-search-loading";
+    this.loading.setAttribute("role", "status");
+    this.loading.setAttribute("aria-live", "polite");
+    this.loading.innerHTML =
+      '<span aria-hidden="true"></span><span class="screen-reader-text">Searching</span>';
+    this.productList.appendChild(this.loading);
   }
 
   /**
@@ -666,6 +692,27 @@ class ESSmartSearch {
     this.loading.style.left = `${left}px`;
     this.loading.style.width = `${Math.max(right - left, 0)}px`;
     this.loading.style.height = `${Math.max(bottom - top, 0)}px`;
+  }
+
+  // =========================================================================
+  // PRODUCT HELPERS
+  // =========================================================================
+
+  /**
+   * Return all batch IDs represented by a rendered product card.
+   *
+   * @param {HTMLElement} product Rendered product card.
+   * @returns {number[]} Parent and child batch IDs.
+   */
+  getProductIds(product) {
+    return [
+      product.dataset.id,
+      ...Array.from(product.querySelectorAll("[data-id]")).map(
+        (child) => child.dataset.id,
+      ),
+    ]
+      .map(Number)
+      .filter(Number.isFinite);
   }
 }
 
