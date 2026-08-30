@@ -14,7 +14,7 @@ export class SearchService {
     const hasFilters = Object.keys(this.app.state.filters).length > 0;
 
     if (!query && !hasFilters) {
-      this.app.showAllProducts();
+      this.app.displayService.showAllProducts();
       this.app.loadingService.setLoading(false); // Explicitly passing the app context as an argument
       return;
     }
@@ -39,7 +39,7 @@ export class SearchService {
       if (!response.ok) throw new Error(`Search failed: ${response.status}`);
 
       const data = await response.json();
-      const visibleProductCount = this.app.renderResults(
+      const visibleProductCount = this.app.displayService.renderResults(
         data.matches,
         data.ranking,
       );

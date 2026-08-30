@@ -1,3 +1,4 @@
+import { DisplayService } from "./display.js";
 import { UrlService } from "./url.js";
 import { SearchService } from "./search.js";
 import { FilterService } from "./filters.js";
@@ -30,6 +31,7 @@ export default class SmartSearch {
     this.urlService = new UrlService(this);
     this.loadingService = new LoadingService(this);
     this.paginationService = new PaginationService(this);
+    this.displayService = new DisplayService(this);
 
     this.paginationContainer = null;
 
@@ -97,10 +99,14 @@ export default class SmartSearch {
     this.bindEvents();
 
     // Render the initial filter state in the UI based on the current state
-    this.renderFilterState();
+    this.displayService.renderFilterState();
 
     // Render the reset button state based on whether a query or filter is active
-    this.renderResetState();
+    this.displayService.renderResetState();
+
+    // Render the initial query display based on the current state
+    this.paginationService.resetToAllProducts();
+    this.paginationService.updatePaginationCount();
 
     // If debugging is enabled, log the initial state and endpoint
     if (window.ESSS.debug) {
@@ -144,10 +150,10 @@ export default class SmartSearch {
   bindEvents() {
     this.input.addEventListener("input", () => {
       this.state.query = this.input.value.trim();
-      this.updateQueryDisplay();
+      this.displayService.updateQueryDisplay();
       this.state.page = 1;
       this.urlService.writeUrlState();
-      this.renderResetState();
+      this.displayService.renderResetState();
       this.scheduleSearch();
     });
 
@@ -157,13 +163,13 @@ export default class SmartSearch {
     // Bind click event to the reset button to clear the search state
     this.resetButton?.addEventListener("click", (event) => {
       event.preventDefault();
-      this.reset();
+      this.displayService.reset();
     });
 
     // Handle browser navigation events to restore state from the URL
     window.addEventListener("popstate", () => {
       this.urlService.readUrlState();
-      this.renderFilterState();
+      this.displayService.renderFilterState();
       this.searchService.execute();
     });
 
@@ -190,195 +196,6 @@ export default class SmartSearch {
     clearTimeout(this.searchTimer);
     this.loadingService.setLoading(true);
     this.searchTimer = setTimeout(() => this.searchService.execute(), 300);
-  }
-
-  // =========================================================================
-  // DISPLAY UPDATES
-  // =========================================================================
-
-  /**
-   * Update the input value and filter button states to reflect the current search state.
-   * This ensures that the UI accurately represents the active query and filters.
-   */
-  renderFilterState() {
-    // Update the input value and active class based on the current query state
-    if (this.input) {
-      // Set the input value to the current query state
-      this.input.value = this.state.query;
-      this.updateQueryDisplay();
-
-      // Toggle the "mixitup-control-active" class on the input based on whether there is a query
-      this.input.classList.toggle(
-        "mixitup-control-active",
-        Boolean(this.state.query),
-      );
-    }
-
-    // Update the active state of filter buttons based on the current filter state
-    document
-      .querySelectorAll("fieldset[data-filter-group] .control")
-      .forEach((button) => {
-        const group = button.closest("fieldset[data-filter-group]")?.dataset
-          .filterGroup;
-        const selected =
-          this.state.filters[group]?.includes(button.dataset.toggle) || false;
-        button.classList.toggle("mixitup-control-active", selected);
-      });
-  }
-
-  /**
-   * Update the query display element with the current search query.
-   * @returns {void}
-   */
-  updateQueryDisplay() {
-    // If the query display element is not available, exit
-    if (!this.queryDisplay) return;
-
-    // Update the query display text based on the current search query
-    this.queryDisplay.textContent = this.state.query
-      ? `Search Results for "${this.state.query}"`
-      : "";
-  }
-
-  /**
-   * Update the reset button's active state based on whether there is an active query or any active filters.
-   * This provides visual feedback to the user that they can reset the search state.
-   */
-  renderResetState() {
-    this.resetButton?.classList.toggle("active", this.hasActiveState());
-  }
-
-  /** Clear query, filters, URL state, and product visibility. */
-  reset() {
-    this.state = {
-      query: "",
-      filters: {},
-      page: 1,
-      pagination: {
-        pages: {},
-      },
-    };
-    this.updateQueryDisplay();
-    this.renderFilterState();
-    this.renderResetState();
-    this.urlService.writeUrlState();
-    this.searchService.execute();
-    this.loadingService.setLoading(false);
-    this.showAllProducts();
-  }
-
-  /**
-   * Apply ranked visibility and order to the rendered product cards.
-   *
-   * @param {Array<number|string>} matchIds Batch IDs returned by the API.
-   * @param {Array<object>} ranking Ranked API results with scores and IDs.
-   */
-  renderResults(matchIds, ranking = []) {
-    // Create a Set of matching batch IDs for quick lookup
-    const matches = new Set(
-      (Array.isArray(matchIds) ? matchIds : []).map(Number),
-    );
-
-    // Create an array of ranked batch IDs from the ranking results
-    const rankedIds = (Array.isArray(ranking) ? ranking : []).map((result) =>
-      Number(result.id),
-    );
-
-    // Create a Map to store the rank of each batch ID for sorting purposes
-    const rankById = new Map(rankedIds.map((id, index) => [id, index]));
-
-    // Initialize a counter for the number of visible products after applying the search results
-    let visibleCount = 0;
-
-    // Get all product list items (li elements) that are direct children of the product list
-    const products = Array.from(
-      this.productList.querySelectorAll(":scope > li"),
-    );
-
-    // Get all product list items (li elements) that are direct children of the product list
-    const matchingParents = this.paginationService.getMatchingParents(
-      products,
-      matches,
-    );
-
-    // Paginate the matching parent product cards and get the items for the current page
-    this.paginationService.paginateMatchingProducts(matchingParents);
-
-    // Sort the product cards based on their rank in the API results and their original order
-    products.sort((left, right) => {
-      // Determine the rank of the left product card based on its batch IDs and the rankById map
-      const leftRank = Math.min(
-        ...this.getProductIds(left).map(
-          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
-        ),
-      );
-
-      // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
-      const rightRank = Math.min(
-        ...this.getProductIds(right).map(
-          (id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER,
-        ),
-      );
-
-      // If the ranks are different, return the difference to sort by rank
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
-
-      // If the ranks are the same, maintain the original order of the products in the DOM
-      return (
-        this.originalProductOrder.indexOf(left) -
-        this.originalProductOrder.indexOf(right)
-      );
-    });
-
-    // Append the sorted product cards back to the product list in the new order
-    products.forEach((product) => this.productList.appendChild(product));
-
-    // Render the current page of parent product cards based on the current state and pagination
-    this.paginationService.renderCurrentPage();
-
-    // Get the count of visible products after applying the search results and update the visibleCount variable
-    visibleCount = this.paginationService.getCurrentPageItems().length;
-
-    // Update the pagination buttons to reflect the current page and total pages
-    this.paginationService.addPaginationButtons();
-
-    // Update the stats element to show the number of visible products and the current page range
-    if (this.stats) {
-      this.stats.style.display = this.parentProducts.length ? "" : "none";
-      this.paginationService.updatePaginationCount();
-    }
-
-    // Update the no results element to show a message if there are no matching products, or hide it if there are matches
-    if (this.noResults) {
-      this.noResults.style.display = visibleCount ? "none" : "block";
-    }
-
-    // Return the count of visible products after applying the search results
-    return visibleCount;
-  }
-
-  /**
-   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
-   * This is called when the search query and filters are cleared, allowing the user to see all products again.
-   */
-  showAllProducts() {
-    // Append the original product order back to the product list in the original order
-    this.originalProductOrder.forEach((product) =>
-      this.productList.appendChild(product),
-    );
-
-    // Remove the "es-smart-search-hidden" class from all products to make them visible again
-    this.originalProductOrder.forEach((product) => {
-      product.classList.remove("es-smart-search-hidden");
-    });
-
-    // Hide the "no results" message if it is currently displayed
-    if (this.noResults) this.noResults.style.display = "none";
-
-    // Show the stats element if it is currently hidden
-    if (this.stats) this.stats.style.display = "";
   }
 
   // =========================================================================

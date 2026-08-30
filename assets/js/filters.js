@@ -58,7 +58,7 @@ export class FilterService {
     this.app.urlService.writeUrlState();
 
     // Update the reset button state based on whether a query or filter is active
-    this.app.renderResetState();
+    this.app.displayService.renderResetState();
 
     // Perform a new search with the updated filter state
     this.app.searchService.execute();

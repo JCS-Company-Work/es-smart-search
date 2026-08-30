@@ -275,4 +275,18 @@ export class PaginationService {
     if (page === "next") return Math.min(current + 1, total);
     return parseInt(page, 10);
   }
+
+  /**
+   * Reset the product list to show all products and update pagination.
+   * This method resets the parent products to the original product order,
+   * recalculates pagination, and sets the current page to 1.
+   * @returns {void}
+   */
+  resetToAllProducts() {
+    this.app.parentProducts = this.app.originalProductOrder;
+    this.app.state.pagination.pages = this.paginate(this.app.parentProducts);
+
+    this.app.state.page = 1;
+    this.updatePaginationCount();
+  }
 }
