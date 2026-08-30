@@ -1,5 +1,9 @@
 import { writeUrlState } from "./url.js";
+import { search } from "./search.js";
 
+/**
+ * Bind click events to filter controls and handle filter state updates.
+ */
 export function bindFilters() {
   // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
   document
@@ -54,5 +58,5 @@ function handleFilterClick(button) {
   this.renderResetState();
 
   // Perform a new search with the updated filter state
-  this.search();
+  search.call(this);
 }
