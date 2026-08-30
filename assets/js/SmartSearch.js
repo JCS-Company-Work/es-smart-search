@@ -1,14 +1,8 @@
-import { readUrlState, writeUrlState } from "./url.js";
-import { bindFilters } from "./filters.js";
-import {
-  getCurrentPageItems,
-  getMatchingParents,
-  paginateMatchingProducts,
-  addPaginationButtons,
-  renderCurrentPage,
-  updatePaginationCount,
-} from "./pagination.js";
-import { search } from "./search.js";
+import { UrlService } from "./url.js";
+import { SearchService } from "./search.js";
+import { FilterService } from "./filters.js";
+import { LoadingService } from "./loading.js";
+import { PaginationService } from "./pagination.js";
 
 /** Coordinates search state, URL state, API requests, and product visibility. */
 export default class SmartSearch {
@@ -29,6 +23,13 @@ export default class SmartSearch {
         pages: {},
       },
     };
+
+    // Initialise services and pass the main SmartSearch instance to them for context
+    this.searchService = new SearchService(this);
+    this.filterService = new FilterService(this);
+    this.urlService = new UrlService(this);
+    this.loadingService = new LoadingService(this);
+    this.paginationService = new PaginationService(this);
 
     this.paginationContainer = null;
 
@@ -87,11 +88,10 @@ export default class SmartSearch {
       this.productList.querySelectorAll(":scope > li"),
     );
 
-    // Create the loading indicator element and append it to the product list
-    this.createLoadingIndicator();
+    this.loadingService.createLoadingIndicator();
 
     // Read the initial state from the URL hash or query parameters
-    readUrlState.call(this);
+    this.urlService.readUrlState();
 
     // Bind event listeners for input, filters, reset, navigation, and layout changes
     this.bindEvents();
@@ -112,7 +112,7 @@ export default class SmartSearch {
 
     // If a query or filter is active, perform an initial search to display results
     if (this.hasActiveState()) {
-      search.call(this);
+      this.searchService.execute();
     }
   }
 
@@ -146,13 +146,13 @@ export default class SmartSearch {
       this.state.query = this.input.value.trim();
       this.updateQueryDisplay();
       this.state.page = 1;
-      writeUrlState.call(this);
+      this.urlService.writeUrlState();
       this.renderResetState();
       this.scheduleSearch();
     });
 
     // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
-    bindFilters.call(this);
+    this.filterService.bindFilters();
 
     // Bind click event to the reset button to clear the search state
     this.resetButton?.addEventListener("click", (event) => {
@@ -162,18 +162,24 @@ export default class SmartSearch {
 
     // Handle browser navigation events to restore state from the URL
     window.addEventListener("popstate", () => {
-      readUrlState.call(this);
+      this.urlService.readUrlState();
       this.renderFilterState();
-      search.call(this);
+      this.searchService.execute();
     });
 
     // Reposition the loading indicator when the user scrolls or resizes the window
-    window.addEventListener("scroll", () => this.positionLoading(), {
-      passive: true,
-    });
+    window.addEventListener(
+      "scroll",
+      () => this.loadingService.positionLoading(),
+      {
+        passive: true,
+      },
+    );
 
     // Reposition the loading indicator when the window is resized
-    window.addEventListener("resize", () => this.positionLoading());
+    window.addEventListener("resize", () =>
+      this.loadingService.positionLoading(),
+    );
   }
 
   /**
@@ -182,8 +188,8 @@ export default class SmartSearch {
    */
   scheduleSearch() {
     clearTimeout(this.searchTimer);
-    this.setLoading(true);
-    this.searchTimer = setTimeout(() => search.call(this), 300);
+    this.loadingService.setLoading(true);
+    this.searchTimer = setTimeout(() => this.searchService.execute(), 300);
   }
 
   // =========================================================================
@@ -255,7 +261,9 @@ export default class SmartSearch {
     this.updateQueryDisplay();
     this.renderFilterState();
     this.renderResetState();
-    writeUrlState.call(this);
+    this.urlService.writeUrlState();
+    this.searchService.execute();
+    this.loadingService.setLoading(false);
     this.showAllProducts();
   }
 
@@ -288,10 +296,13 @@ export default class SmartSearch {
     );
 
     // Get all product list items (li elements) that are direct children of the product list
-    const matchingParents = getMatchingParents.call(this, products, matches);
+    const matchingParents = this.paginationService.getMatchingParents(
+      products,
+      matches,
+    );
 
     // Paginate the matching parent product cards and get the items for the current page
-    paginateMatchingProducts.call(this, matchingParents);
+    this.paginationService.paginateMatchingProducts(matchingParents);
 
     // Sort the product cards based on their rank in the API results and their original order
     products.sort((left, right) => {
@@ -325,18 +336,18 @@ export default class SmartSearch {
     products.forEach((product) => this.productList.appendChild(product));
 
     // Render the current page of parent product cards based on the current state and pagination
-    renderCurrentPage.call(this);
+    this.paginationService.renderCurrentPage();
 
     // Get the count of visible products after applying the search results and update the visibleCount variable
-    visibleCount = getCurrentPageItems.call(this).length;
+    visibleCount = this.paginationService.getCurrentPageItems().length;
 
     // Update the pagination buttons to reflect the current page and total pages
-    addPaginationButtons.call(this);
+    this.paginationService.addPaginationButtons();
 
     // Update the stats element to show the number of visible products and the current page range
     if (this.stats) {
       this.stats.style.display = this.parentProducts.length ? "" : "none";
-      updatePaginationCount.call(this);
+      this.paginationService.updatePaginationCount();
     }
 
     // Update the no results element to show a message if there are no matching products, or hide it if there are matches
@@ -374,66 +385,66 @@ export default class SmartSearch {
   // LOADING INDICATOR
   // =========================================================================
 
-  /**
-   * Create a loading indicator element and append it to the product list.
-   * The loading indicator is shown while an API request is in progress.
-   */
-  createLoadingIndicator() {
-    this.loading = document.createElement("div");
-    this.loading.className = "es-smart-search-loading";
-    this.loading.setAttribute("role", "status");
-    this.loading.setAttribute("aria-live", "polite");
-    this.loading.innerHTML =
-      '<span aria-hidden="true"></span><span class="screen-reader-text">Searching</span>';
-    this.productList.appendChild(this.loading);
-  }
+  // /**
+  //  * Create a loading indicator element and append it to the product list.
+  //  * The loading indicator is shown while an API request is in progress.
+  //  */
+  // createLoadingIndicator() {
+  //   this.loading = document.createElement("div");
+  //   this.loading.className = "es-smart-search-loading";
+  //   this.loading.setAttribute("role", "status");
+  //   this.loading.setAttribute("aria-live", "polite");
+  //   this.loading.innerHTML =
+  //     '<span aria-hidden="true"></span><span class="screen-reader-text">Searching</span>';
+  //   this.productList.appendChild(this.loading);
+  // }
 
-  /**
-   * Toggle the request loading overlay and input busy state.
-   *
-   * @param {boolean} isLoading Whether the request is in progress.
-   */
-  setLoading(isLoading) {
-    // If the loading indicator is active, reposition it to stay centered over the visible product area
-    if (isLoading) this.positionLoading();
+  // /**
+  //  * Toggle the request loading overlay and input busy state.
+  //  *
+  //  * @param {boolean} isLoading Whether the request is in progress.
+  //  */
+  // setLoading(isLoading) {
+  //   // If the loading indicator is active, reposition it to stay centered over the visible product area
+  //   if (isLoading) this.positionLoading();
 
-    // Toggle the "is-active" class on the loading indicator based on whether a request is in progress
-    this.loading?.classList.toggle("is-active", isLoading);
+  //   // Toggle the "is-active" class on the loading indicator based on whether a request is in progress
+  //   this.loading?.classList.toggle("is-active", isLoading);
 
-    // Update the input's aria-busy attribute to indicate whether the input is currently busy with a request
-    if (this.input)
-      this.input.setAttribute("aria-busy", isLoading ? "true" : "false");
-  }
+  //   // Update the input's aria-busy attribute to indicate whether the input is currently busy with a request
+  //   if (this.input)
+  //     this.input.setAttribute("aria-busy", isLoading ? "true" : "false");
+  // }
 
-  /**
-   * Position the loading indicator over the visible product area, ensuring it is centered and sized correctly.
-   * @returns
-   */
-  positionLoading() {
-    // If the loading indicator or product list is not available, exit the function early
-    if (!this.loading || !this.productList) return;
+  // /**
+  //  * Position the loading indicator over the visible product area, ensuring it is centered and sized correctly.
+  //  * @returns
+  //  */
+  // positionLoading() {
+  //   // If the loading indicator or product list is not available, exit the function early
+  //   if (!this.loading || !this.productList) return;
 
-    // Get the bounding rectangle of the product list to determine its position and size
-    const bounds = this.productList.getBoundingClientRect();
+  //   // Get the bounding rectangle of the product list to determine its position and size
+  //   const bounds = this.productList.getBoundingClientRect();
 
-    // Calculate the top, bottom, left, and right positions for the loading indicator, ensuring it stays within the viewport
-    const top = Math.max(bounds.top, 0);
+  //   // Calculate the top, bottom, left, and right positions for the loading indicator, ensuring it stays within the viewport
+  //   const top = Math.max(bounds.top, 0);
 
-    // Calculate the bottom position, ensuring it does not exceed the window's inner height
-    const bottom = Math.min(bounds.bottom, window.innerHeight);
+  //   // Calculate the bottom position, ensuring it does not exceed the window's inner height
+  //   const bottom = Math.min(bounds.bottom, window.innerHeight);
 
-    // Calculate the left position, ensuring it does not go below 0
-    const left = Math.max(bounds.left, 0);
+  //   // Calculate the left position, ensuring it does not go below 0
+  //   const left = Math.max(bounds.left, 0);
 
-    // Calculate the right position, ensuring it does not exceed the window's inner width
-    const right = Math.min(bounds.right, window.innerWidth);
+  //   // Calculate the right position, ensuring it does not exceed the window's inner width
+  //   const right = Math.min(bounds.right, window.innerWidth);
 
-    // Set the loading indicator's position and size based on the calculated values
-    this.loading.style.top = `${top}px`;
-    this.loading.style.left = `${left}px`;
-    this.loading.style.width = `${Math.max(right - left, 0)}px`;
-    this.loading.style.height = `${Math.max(bottom - top, 0)}px`;
-  }
+  //   // Set the loading indicator's position and size based on the calculated values
+  //   this.loading.style.top = `${top}px`;
+  //   this.loading.style.left = `${left}px`;
+  //   this.loading.style.width = `${Math.max(right - left, 0)}px`;
+  //   this.loading.style.height = `${Math.max(bottom - top, 0)}px`;
+  // }
 
   // =========================================================================
   // PRODUCT HELPERS

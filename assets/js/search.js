@@ -1,118 +1,96 @@
-/**
- * Perform a search based on the current query and filter state.
- * @returns {Promise<void>} Resolves when the search is complete.
- */
-export async function search() {
-  // Determine the query to use for the search, ensuring it meets the minimum length requirement
-  const query =
-    this.state.query.length >= this.minimumQueryLength ? this.state.query : "";
-
-  // Determine if there are any active filters in the current state
-  const hasFilters = Object.keys(this.state.filters).length > 0;
-
-  // If there is no query and no filters, show all products and stop loading
-  if (!query && !hasFilters) {
-    // If debugging is enabled and there is a query that was skipped, log the skipped query and minimum length
-    if (window.ESSS.debug && this.state.query) {
-      console.info("[ES Smart Search] query skipped", {
-        query: this.state.query,
-        minimumQueryLength: this.minimumQueryLength,
-      });
-    }
-
-    // If there is no query and no filters, show all products and stop loading
-    this.showAllProducts();
-
-    // Stop the loading indicator since there is no search to perform
-    this.setLoading(false);
-
-    // Exit the search function early as there is nothing to search for
-    return;
+export class SearchService {
+  constructor(app) {
+    // Explicitly save a reference to the main SmartSearch instance
+    this.app = app;
   }
 
-  // If there is an ongoing request, abort it before starting a new search
-  this.requestController?.abort();
+  async execute() {
+    // No magic 'this'. It's crystal clear where 'state' is coming from.
+    const query =
+      this.app.state.query.length >= this.app.minimumQueryLength
+        ? this.app.state.query
+        : "";
 
-  // Create a new AbortController for the current search request
-  this.requestController = new AbortController();
+    const hasFilters = Object.keys(this.app.state.filters).length > 0;
 
-  // Store a reference to the current request controller for use in the fetch request
-  const currentController = this.requestController;
+    if (!query && !hasFilters) {
+      this.app.showAllProducts();
+      this.app.loadingService.setLoading(false); // Explicitly passing the app context as an argument
+      return;
+    }
 
-  // Show the loading indicator while the search request is in progress
-  this.setLoading(true);
+    // Handle abort controllers openly
+    this.app.requestController?.abort();
+    this.app.requestController = new AbortController();
+    const currentController = this.app.requestController;
 
-  // Build the query parameters for the API request, including the search query and filters
-  const params = new URLSearchParams({
-    q: query,
-    filters: JSON.stringify(this.state.filters),
-  });
+    this.app.loadingService.setLoading(true);
 
-  // Perform the API request to the ESSS endpoint with the constructed parameters
-  try {
-    const response = await fetch(`${ESSS.endpoint}?${params}`, {
-      signal: currentController.signal,
+    const params = new URLSearchParams({
+      q: query,
+      filters: JSON.stringify(this.app.state.filters),
     });
 
-    if (!response.ok) {
-      throw new Error(`Smart search request failed: ${response.status}`);
-    }
+    try {
+      const response = await fetch(`${window.ESSS.endpoint}?${params}`, {
+        signal: currentController.signal,
+      });
 
-    // Parse the JSON response from the API
-    const data = await response.json();
+      if (!response.ok) throw new Error(`Search failed: ${response.status}`);
 
-    // Render the search results and get the count of visible products
-    const visibleProductCount = this.renderResults(data.matches, data.ranking);
+      const data = await response.json();
+      const visibleProductCount = this.app.renderResults(
+        data.matches,
+        data.ranking,
+      );
 
-    // Log the search query, parameters, response, and visible product count for debugging purposes
-    logSearch.call(this, data, params, response, visibleProductCount);
-  } catch (error) {
-    // If the error is not an AbortError, log the error to the console
-    if (error.name !== "AbortError") {
-      console.error("Smart search failed:", error);
-    }
-  } finally {
-    // If the current request controller is still the same and has not been aborted, stop the loading indicator
-    if (
-      this.requestController === currentController &&
-      !currentController.signal.aborted
-    ) {
-      this.setLoading(false);
+      this.logSearch(data, params, response, visibleProductCount);
+    } catch (error) {
+      if (error.name !== "AbortError") console.error("Search failed:", error);
+    } finally {
+      if (
+        this.app.requestController === currentController &&
+        !currentController.signal.aborted
+      ) {
+        this.app.loadingService.setLoading(false);
+      }
     }
   }
-}
 
-/**
- * Log the search query, parameters, response, and visible product count for debugging purposes.
- * @param {object} data The API response data.
- * @param {URLSearchParams} params The query parameters used in the request.
- * @param {Response} response The fetch response object.
- * @param {number} visibleProductCount The count of visible products after rendering.
- * @returns {void}
- */
-function logSearch(data, params, response, visibleProductCount) {
-  if (!window.ESSS.debug) {
-    return;
+  /**
+   * Log the search query, parameters, response, and visible product count for debugging purposes.
+   * @param {object} data The API response data.
+   * @param {URLSearchParams} params The query parameters used in the request.
+   * @param {Response} response The fetch response object.
+   * @param {number} visibleProductCount The count of visible products after rendering.
+   * @returns {void}
+   */
+  logSearch(data, params, response, visibleProductCount) {
+    if (!window.ESSS.debug) {
+      return;
+    }
+
+    const ranking = (data.ranking || []).map((result, position) => ({
+      position: position + 1,
+      id: result.id,
+      score: result.score,
+      matchedField: Object.entries(result.matched_fields || {})
+        .map(([field, weight]) => `${field} (+${weight})`)
+        .join(", "),
+      matchedFilter: Object.values(result.matched_values || {}).join(", "),
+    }));
+
+    console.groupCollapsed(
+      `[ES Smart Search] ${data.query || "(filters only)"}`,
+    );
+    console.log("Query:", data.query);
+    console.log("Filters:", this.app.state.filters);
+    console.log("Request:", `${ESSS.endpoint}?${params}`);
+    console.log("Index:", response.headers.get("X-ESSS-Index-Source"));
+    console.log("Indexed batches:", response.headers.get("X-ESSS-Index-Count"));
+    console.log("Matching products on page:", visibleProductCount);
+    console.log("Matching batches:", data.count);
+    console.table(ranking);
+    console.groupEnd();
   }
-
-  const ranking = (data.ranking || []).map((result, position) => ({
-    position: position + 1,
-    id: result.id,
-    score: result.score,
-    matchedField: Object.entries(result.matched_fields || {})
-      .map(([field, weight]) => `${field} (+${weight})`)
-      .join(", "),
-    matchedFilter: Object.values(result.matched_values || {}).join(", "),
-  }));
-
-  console.groupCollapsed(`[ES Smart Search] ${data.query || "(filters only)"}`);
-  console.log("Query:", data.query);
-  console.log("Filters:", this.state.filters);
-  console.log("Request:", `${ESSS.endpoint}?${params}`);
-  console.log("Index:", response.headers.get("X-ESSS-Index-Source"));
-  console.log("Indexed batches:", response.headers.get("X-ESSS-Index-Count"));
-  console.log("Matching products on page:", visibleProductCount);
-  console.log("Matching batches:", data.count);
-  console.table(ranking);
-  console.groupEnd();
 }
