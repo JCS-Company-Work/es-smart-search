@@ -1,5 +1,8 @@
+import { readUrlState, writeUrlState } from "./url.js";
+import { bindFilters } from "./filters.js";
+
 /** Coordinates search state, URL state, API requests, and product visibility. */
-class ESSmartSearch {
+export default class SmartSearch {
   constructor() {
     // Current search state, including query, filters, and page number.
     this.state = {
@@ -79,7 +82,7 @@ class ESSmartSearch {
     this.createLoadingIndicator();
 
     // Read the initial state from the URL hash or query parameters
-    this.readUrlState();
+    readUrlState.call(this);
 
     // Bind event listeners for input, filters, reset, navigation, and layout changes
     this.bindEvents();
@@ -117,126 +120,126 @@ class ESSmartSearch {
     return Boolean(this.state.query || Object.keys(this.state.filters).length);
   }
 
-  /**
-   * Restore query, filters and page from the URL.
-   *
-   * The hash is used by the in-page controls. The query parameter is used by
-   * the site-wide search form, so both entry points share the same search flow.
-   */
-  readUrlState() {
-    // Get the current URL hash and remove the leading '#' character
-    const hash = window.location.hash.replace(/^#/, "");
-    const nextState = {
-      query: "",
-      filters: {},
-      page: 1,
-      pagination: {
-        pages: {},
-      },
-    };
+  // /**
+  //  * Restore query, filters and page from the URL.
+  //  *
+  //  * The hash is used by the in-page controls. The query parameter is used by
+  //  * the site-wide search form, so both entry points share the same search flow.
+  //  */
+  // readUrlState() {
+  //   // Get the current URL hash and remove the leading '#' character
+  //   const hash = window.location.hash.replace(/^#/, "");
+  //   const nextState = {
+  //     query: "",
+  //     filters: {},
+  //     page: 1,
+  //     pagination: {
+  //       pages: {},
+  //     },
+  //   };
 
-    // If there is no hash, check for a query parameter in the URL search parameters
-    if (!hash) {
-      // Use URLSearchParams to parse the query parameters from the current URL
-      const params = new URLSearchParams(window.location.search);
+  //   // If there is no hash, check for a query parameter in the URL search parameters
+  //   if (!hash) {
+  //     // Use URLSearchParams to parse the query parameters from the current URL
+  //     const params = new URLSearchParams(window.location.search);
 
-      // Get the "textsearch" parameter from the query parameters, or default to an empty string
-      nextState.query = params.get("textsearch") || "";
+  //     // Get the "textsearch" parameter from the query parameters, or default to an empty string
+  //     nextState.query = params.get("textsearch") || "";
 
-      // Get the "page" parameter from the query parameters, or default to 1
-      this.state = nextState;
+  //     // Get the "page" parameter from the query parameters, or default to 1
+  //     this.state = nextState;
 
-      // If there is a query parameter, update the URL hash to reflect the query and reset the page number to 1
-      if (nextState.query) {
-        const cleanUrl = `${window.location.pathname}#textsearch=${encodeURIComponent(
-          nextState.query,
-        )}&page=1`;
+  //     // If there is a query parameter, update the URL hash to reflect the query and reset the page number to 1
+  //     if (nextState.query) {
+  //       const cleanUrl = `${window.location.pathname}#textsearch=${encodeURIComponent(
+  //         nextState.query,
+  //       )}&page=1`;
 
-        window.history.replaceState(null, "", cleanUrl);
-      }
+  //       window.history.replaceState(null, "", cleanUrl);
+  //     }
 
-      return;
-    }
+  //     return;
+  //   }
 
-    // Split the hash into key-value pairs and process each part
-    hash.split("&").forEach((part) => {
-      // Find the index of the '=' separator in the part
-      const separator = part.indexOf("=");
+  //   // Split the hash into key-value pairs and process each part
+  //   hash.split("&").forEach((part) => {
+  //     // Find the index of the '=' separator in the part
+  //     const separator = part.indexOf("=");
 
-      // If there is no '=' separator, skip this part
-      if (separator < 0) return;
+  //     // If there is no '=' separator, skip this part
+  //     if (separator < 0) return;
 
-      // Decode the key and value from the part
-      const key = decodeURIComponent(part.slice(0, separator));
+  //     // Decode the key and value from the part
+  //     const key = decodeURIComponent(part.slice(0, separator));
 
-      // Decode the value from the part, handling URL encoding
-      const value = decodeURIComponent(part.slice(separator + 1));
+  //     // Decode the value from the part, handling URL encoding
+  //     const value = decodeURIComponent(part.slice(separator + 1));
 
-      // Update the nextState based on the key and value
-      if (key === "textsearch") {
-        nextState.query = value;
-      } else if (key === "page") {
-        nextState.page = parseInt(value, 10) || 1;
-      } else if (value) {
-        nextState.filters[key] = value.split(",");
-      }
-    });
+  //     // Update the nextState based on the key and value
+  //     if (key === "textsearch") {
+  //       nextState.query = value;
+  //     } else if (key === "page") {
+  //       nextState.page = parseInt(value, 10) || 1;
+  //     } else if (value) {
+  //       nextState.filters[key] = value.split(",");
+  //     }
+  //   });
 
-    // Update the current state with the nextState derived from the URL
-    this.state = nextState;
-  }
+  //   // Update the current state with the nextState derived from the URL
+  //   this.state = nextState;
+  // }
 
-  /**
-   * Update the URL hash to reflect the current query, filters, and page.
-   * @returns {void}
-   */
-  writeUrlState() {
-    // Build an array of key-value pairs for the URL hash
-    const parts = [];
+  // /**
+  //  * Update the URL hash to reflect the current query, filters, and page.
+  //  * @returns {void}
+  //  */
+  // writeUrlState() {
+  //   // Build an array of key-value pairs for the URL hash
+  //   const parts = [];
 
-    // Check if there are any active filters in the current state
-    const hasFilters = Object.keys(this.state.filters).length > 0;
+  //   // Check if there are any active filters in the current state
+  //   const hasFilters = Object.keys(this.state.filters).length > 0;
 
-    // Check if the current query meets the minimum length for searching
-    const hasSearchableQuery =
-      this.state.query.length >= this.minimumQueryLength;
+  //   // Check if the current query meets the minimum length for searching
+  //   const hasSearchableQuery =
+  //     this.state.query.length >= this.minimumQueryLength;
 
-    // Check if the URL already has a query parameter for textsearch
-    const urlHasQuery = window.location.hash.includes("textsearch=");
+  //   // Check if the URL already has a query parameter for textsearch
+  //   const urlHasQuery = window.location.hash.includes("textsearch=");
 
-    // If there is a searchable query, add it to the parts array for the URL hash
-    if (hasSearchableQuery) {
-      parts.push(`textsearch=${encodeURIComponent(this.state.query)}`);
-    } else if (this.state.query && !hasFilters && !urlHasQuery) {
-      return;
-    }
+  //   // If there is a searchable query, add it to the parts array for the URL hash
+  //   if (hasSearchableQuery) {
+  //     parts.push(`textsearch=${encodeURIComponent(this.state.query)}`);
+  //   } else if (this.state.query && !hasFilters && !urlHasQuery) {
+  //     return;
+  //   }
 
-    // Add each filter group and its values to the parts array for the URL hash
-    Object.entries(this.state.filters).forEach(([group, values]) => {
-      if (values.length) {
-        parts.push(
-          `${encodeURIComponent(group)}=${encodeURIComponent(values.join(","))}`,
-        );
-      }
-    });
+  //   // Add each filter group and its values to the parts array for the URL hash
+  //   Object.entries(this.state.filters).forEach(([group, values]) => {
+  //     if (values.length) {
+  //       parts.push(
+  //         `${encodeURIComponent(group)}=${encodeURIComponent(values.join(","))}`,
+  //       );
+  //     }
+  //   });
 
-    // Add the current page number to the parts array for the URL hash
-    parts.push(`page=${this.state.page}`);
+  //   // Add the current page number to the parts array for the URL hash
+  //   parts.push(`page=${this.state.page}`);
 
-    // Construct the new URL hash from the parts array
-    const hash = `#${parts.join("&")}`;
+  //   // Construct the new URL hash from the parts array
+  //   const hash = `#${parts.join("&")}`;
 
-    // Construct the full URL with the current pathname, search parameters, and new hash
-    const url = `${window.location.pathname}${window.location.search}${hash}`;
+  //   // Construct the full URL with the current pathname, search parameters, and new hash
+  //   const url = `${window.location.pathname}${window.location.search}${hash}`;
 
-    // If the new URL is different from the current URL, update the browser history
-    if (
-      url !==
-      `${window.location.pathname}${window.location.search}${window.location.hash}`
-    ) {
-      window.history.pushState(null, "", url);
-    }
-  }
+  //   // If the new URL is different from the current URL, update the browser history
+  //   if (
+  //     url !==
+  //     `${window.location.pathname}${window.location.search}${window.location.hash}`
+  //   ) {
+  //     window.history.pushState(null, "", url);
+  //   }
+  // }
 
   // =========================================================================
   // EVENT HANDLING
@@ -255,17 +258,13 @@ class ESSmartSearch {
       this.state.query = this.input.value.trim();
       this.updateQueryDisplay();
       this.state.page = 1;
-      this.writeUrlState();
+      writeUrlState.call(this);
       this.renderResetState();
       this.scheduleSearch();
     });
 
     // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
-    document
-      .querySelectorAll("fieldset[data-filter-group] .control")
-      .forEach((button) => {
-        button.addEventListener("click", () => this.handleFilterClick(button));
-      });
+    bindFilters.call(this);
 
     // Bind click event to the reset button to clear the search state
     this.resetButton?.addEventListener("click", (event) => {
@@ -275,7 +274,7 @@ class ESSmartSearch {
 
     // Handle browser navigation events to restore state from the URL
     window.addEventListener("popstate", () => {
-      this.readUrlState();
+      readUrlState.call(this);
       this.renderFilterState();
       this.search();
     });
@@ -289,51 +288,51 @@ class ESSmartSearch {
     window.addEventListener("resize", () => this.positionLoading());
   }
 
-  /**
-   * Update filter state after a filter control is clicked.
-   *
-   * @param {HTMLButtonElement} button The clicked filter control.
-   */
-  handleFilterClick(button) {
-    // Get the filter group and value from the clicked button's dataset
-    const group = button.closest("fieldset[data-filter-group]")?.dataset
-      .filterGroup;
+  // /**
+  //  * Update filter state after a filter control is clicked.
+  //  *
+  //  * @param {HTMLButtonElement} button The clicked filter control.
+  //  */
+  // handleFilterClick(button) {
+  //   // Get the filter group and value from the clicked button's dataset
+  //   const group = button.closest("fieldset[data-filter-group]")?.dataset
+  //     .filterGroup;
 
-    // Get the value to toggle from the button's dataset
-    const value = button.dataset.toggle;
+  //   // Get the value to toggle from the button's dataset
+  //   const value = button.dataset.toggle;
 
-    // If either the group or value is missing, return
-    if (!group || !value) {
-      return;
-    }
+  //   // If either the group or value is missing, return
+  //   if (!group || !value) {
+  //     return;
+  //   }
 
-    // Toggle the active state of the clicked button
-    button.classList.toggle("mixitup-control-active");
+  //   // Toggle the active state of the clicked button
+  //   button.classList.toggle("mixitup-control-active");
 
-    // Update the filter state for the group based on the active buttons
-    this.state.filters[group] = Array.from(
-      document.querySelectorAll(
-        `fieldset[data-filter-group="${CSS.escape(group)}"] .control.mixitup-control-active`,
-      ),
-    ).map((activeButton) => activeButton.dataset.toggle);
+  //   // Update the filter state for the group based on the active buttons
+  //   this.state.filters[group] = Array.from(
+  //     document.querySelectorAll(
+  //       `fieldset[data-filter-group="${CSS.escape(group)}"] .control.mixitup-control-active`,
+  //     ),
+  //   ).map((activeButton) => activeButton.dataset.toggle);
 
-    // If no active filters remain for the group, remove the group from the state
-    if (!this.state.filters[group].length) {
-      delete this.state.filters[group];
-    }
+  //   // If no active filters remain for the group, remove the group from the state
+  //   if (!this.state.filters[group].length) {
+  //     delete this.state.filters[group];
+  //   }
 
-    // Reset the page number to 1 when filters change
-    this.state.page = 1;
+  //   // Reset the page number to 1 when filters change
+  //   this.state.page = 1;
 
-    // Update the URL hash to reflect the new state
-    this.writeUrlState();
+  //   // Update the URL hash to reflect the new state
+  //   writeUrlState.call(this);
 
-    // Update the reset button state based on whether a query or filter is active
-    this.renderResetState();
+  //   // Update the reset button state based on whether a query or filter is active
+  //   this.renderResetState();
 
-    // Perform a new search with the updated filter state
-    this.search();
-  }
+  //   // Perform a new search with the updated filter state
+  //   this.search();
+  // }
 
   /**
    * Schedule a search to be performed after a short delay, allowing for debouncing of rapid input changes.
@@ -414,7 +413,7 @@ class ESSmartSearch {
     this.updateQueryDisplay();
     this.renderFilterState();
     this.renderResetState();
-    this.writeUrlState();
+    writeUrlState.call(this);
     this.showAllProducts();
   }
 
@@ -529,9 +528,9 @@ class ESSmartSearch {
     if (this.stats) this.stats.style.display = "";
   }
 
-  // =========================================================================
-  // PAGINATION
-  // =========================================================================
+  // // =========================================================================
+  // // PAGINATION
+  // // =========================================================================
 
   /**
    * Return the number of parent product cards to show on each page.
@@ -775,7 +774,7 @@ class ESSmartSearch {
       this.state.page = newPage;
 
       // Update URL
-      this.writeUrlState();
+      writeUrlState.call(this);
 
       // Render current page
       this.renderCurrentPage();
@@ -1025,7 +1024,7 @@ class ESSmartSearch {
 document.addEventListener(
   "DOMContentLoaded",
   () => {
-    window.esSmartSearch = new ESSmartSearch();
+    window.esSmartSearch = new SmartSearch();
     window.esSmartSearch.init();
   },
   { once: true },
