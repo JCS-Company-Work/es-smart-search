@@ -119,14 +119,14 @@ export class DisplayService {
     products.sort((left, right) => {
       // Determine the rank of the left product card based on its batch IDs and the rankById map
       const leftRank = Math.min(
-        ...this.app
+        ...this.app.helpers
           .getProductIds(left)
           .map((id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER),
       );
 
       // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
       const rightRank = Math.min(
-        ...this.app
+        ...this.app.helpers
           .getProductIds(right)
           .map((id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER),
       );
