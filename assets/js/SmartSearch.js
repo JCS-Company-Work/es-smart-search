@@ -5,6 +5,7 @@ import { FilterService } from "./filters.js";
 import { LoadingService } from "./loading.js";
 import { PaginationService } from "./pagination.js";
 import { Helpers } from "./helpers.js";
+import { Events } from "./events.js";
 
 /** Coordinates search state, URL state, API requests, and product visibility. */
 export default class SmartSearch {
@@ -34,11 +35,11 @@ export default class SmartSearch {
     this.paginationService = new PaginationService(this);
     this.displayService = new DisplayService(this);
     this.helpers = new Helpers(this);
+    this.events = new Events(this);
 
     this.paginationContainer = null;
 
     // Controller properties for DOM elements, timers, and request state.
-
     this.input = null;
     this.productList = null;
     this.stats = null;
@@ -98,7 +99,7 @@ export default class SmartSearch {
     this.urlService.readUrlState();
 
     // Bind event listeners for input, filters, reset, navigation, and layout changes
-    this.bindEvents();
+    this.events.bindEvents();
 
     // Render the initial filter state in the UI based on the current state
     this.displayService.renderFilterState();
@@ -119,107 +120,10 @@ export default class SmartSearch {
     }
 
     // If a query or filter is active, perform an initial search to display results
-    if (this.hasActiveState()) {
+    if (this.searchService.hasActiveState()) {
       this.searchService.execute();
     }
   }
-
-  // =========================================================================
-  // STATE MANAGEMENT
-  // =========================================================================
-
-  /**
-   * Check if there is an active search query or any active filters.
-   *
-   * @returns {boolean} True if a query or filter is active, false otherwise.
-   */
-  hasActiveState() {
-    return Boolean(this.state.query || Object.keys(this.state.filters).length);
-  }
-
-  // =========================================================================
-  // EVENT HANDLING
-  // =========================================================================
-
-  /**
-   * Bind event listeners for input changes, filter clicks, reset button, navigation, and layout changes.
-   * The input event triggers a search when the user types a query.
-   * Filter clicks update the filter state and trigger a search.
-   * The reset button clears the query and filters.
-   * The popstate event handles browser navigation to restore state.
-   * Scroll and resize events reposition the loading indicator.
-   */
-  bindEvents() {
-    this.input.addEventListener("input", () => {
-      this.state.query = this.input.value.trim();
-      this.displayService.updateQueryDisplay();
-      this.state.page = 1;
-      this.urlService.writeUrlState();
-      this.displayService.renderResetState();
-      this.scheduleSearch();
-    });
-
-    // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
-    this.filterService.bindFilters();
-
-    // Bind click event to the reset button to clear the search state
-    this.resetButton?.addEventListener("click", (event) => {
-      event.preventDefault();
-      this.displayService.reset();
-    });
-
-    // Handle browser navigation events to restore state from the URL
-    window.addEventListener("popstate", () => {
-      this.urlService.readUrlState();
-      this.displayService.renderFilterState();
-      this.searchService.execute();
-    });
-
-    // Reposition the loading indicator when the user scrolls or resizes the window
-    window.addEventListener(
-      "scroll",
-      () => this.loadingService.positionLoading(),
-      {
-        passive: true,
-      },
-    );
-
-    // Reposition the loading indicator when the window is resized
-    window.addEventListener("resize", () =>
-      this.loadingService.positionLoading(),
-    );
-  }
-
-  /**
-   * Schedule a search to be performed after a short delay, allowing for debouncing of rapid input changes.
-   * This prevents excessive API requests while the user is typing or changing filters.
-   */
-  scheduleSearch() {
-    clearTimeout(this.searchTimer);
-    this.loadingService.setLoading(true);
-    this.searchTimer = setTimeout(() => this.searchService.execute(), 300);
-  }
-
-  // =========================================================================
-  // PRODUCT HELPERS
-  // =========================================================================
-
-  // /**
-  //  * Return all batch IDs represented by a rendered product card.
-  //  *
-  //  * @param {HTMLElement} product Rendered product card.
-  //  * @returns {number[]} Parent and child batch IDs.
-  //  */
-  // getProductIds(product) {
-  //   return [
-  //     product.dataset.id,
-  //     ...Array.from(product.querySelectorAll("[data-id]")).map(
-  //       (child) => child.dataset.id,
-  //     ),
-  //   ]
-  //     .map(Number)
-  //     .filter(Number.isFinite);
-  // }
 }
 
 // Initialize the ESSmartSearch instance when the DOM content is fully loaded, ensuring that the search functionality is ready to use.

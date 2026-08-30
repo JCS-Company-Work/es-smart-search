@@ -58,6 +58,15 @@ export class SearchService {
   }
 
   /**
+   * Check if there is an active search query or any active filters.
+   *
+   * @returns {boolean} True if a query or filter is active, false otherwise.
+   */
+  hasActiveState() {
+    return Boolean(this.state.query || Object.keys(this.state.filters).length);
+  }
+
+  /**
    * Log the search query, parameters, response, and visible product count for debugging purposes.
    * @param {object} data The API response data.
    * @param {URLSearchParams} params The query parameters used in the request.
