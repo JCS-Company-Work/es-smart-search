@@ -40,13 +40,13 @@ class SearchReporting {
             query_normalised VARCHAR(255) NOT NULL,
             matching_batches INT UNSIGNED NOT NULL DEFAULT 0,
             displayed_parents INT UNSIGNED NOT NULL DEFAULT 0,
-            is_zero_result TINYINT(1) NOT NULL DEFAULT 0,
+            has_results TINYINT(1) NOT NULL DEFAULT 0,
             top_matches_json LONGTEXT NULL,
             page_path VARCHAR(255) NOT NULL,
             PRIMARY KEY (id),
             KEY created_at (created_at),
             KEY query_normalised (query_normalised),
-            KEY is_zero_result (is_zero_result),
+            KEY has_results (has_results),
             KEY visitor_id (visitor_id),
             KEY session_id (session_id)
         ) $charset_collate;";
@@ -76,10 +76,10 @@ class SearchReporting {
             'visitor_id' => sanitize_text_field( $request->get_param( 'visitor_id' ) ),
             'session_id' => sanitize_text_field( $request->get_param( 'session_id' ) ),
             'query_raw' => sanitize_text_field( $request->get_param( 'query_raw' ) ),
-            'query_normalised' => sanitize_text_field( $request->get_param( 'query_normalised' ) ),
+            'query_normalised' => self::esss_normalise_query( sanitize_text_field( $request->get_param( 'query_normalised' ) ) ),
             'matching_batches' => intval( $request->get_param( 'matching_batches' ) ),
             'displayed_parents' => intval( $request->get_param( 'displayed_parents' ) ),
-            'is_zero_result' => intval( $request->get_param( 'is_zero_result' ) ),
+            'has_results' => intval( $request->get_param( 'has_results' ) ),
             'top_matches_json' => wp_json_encode( $request->get_param( 'top_matches_json' ) ),
             'page_path' => sanitize_text_field( $request->get_param( 'page_path' ) ),
         ];
@@ -90,6 +90,27 @@ class SearchReporting {
             [ 'success' => true ],
             200
         );
+    }
+
+    /**
+     * Normalise search query
+     *
+     * @param string $raw_query The raw search query.
+     * @return string The normalised search query.
+     */
+    private static function esss_normalise_query( $raw_query ) {
+
+        // Convert to lowercase
+        $clean = mb_strtolower( $raw_query, 'UTF-8' );
+        
+        // Strip punctuation and special characters, keeping only letters, numbers, spaces, and hyphens
+        $clean = preg_replace( '/[^\w\s-]/u', '', $clean );
+        
+        // Collapse multiple spaces into a single space
+        $clean = preg_replace( '/\s+/', ' ', $clean );
+        
+        // Trim leading and trailing spaces
+        return trim( $clean );
     }
 
 }

@@ -30,30 +30,24 @@ class Assets {
         wp_enqueue_script('es-smart-search', ESSS_URL . 'assets/js/SmartSearch.js', [], ESSS_VERSION, true);
         wp_enqueue_style('es-smart-search', ESSS_URL . 'assets/css/es-smart-search.css', [], ESSS_VERSION);
 
-        // 1. Tell LiteSpeed to track this nonce dynamically behind the cache layer
+        // Handle LiteSpeed ESI hole-punching for the nonce if the hook is available
         if ( has_action( 'litespeed_nonce' ) ) {
             do_action( 'litespeed_nonce', 'esss_reporting_nonce' );
         }
 
-        // 2. Build the unified payload data object
+        // Build payload data object
         $esss_options = [
             'endpoint'          => esc_url_raw( rest_url( 'es-smart-search/v1/search' ) ),
             'reportingEndpoint' => esc_url_raw( rest_url( 'es-smart-search/v1/report' ) ),
-            'nonce'             => wp_create_nonce( 'wp_rest' ), // Handled via LiteSpeed ESI hole-punching
+            'nonce'             => wp_create_nonce( 'wp_rest' ),
             'debug'             => true,
         ];
 
-        // 3. Convert the PHP array to a clean, safe JavaScript object block
+        // Convert the PHP array to a JavaScript object block
         $inline_js = 'window.ESSS = ' . wp_json_encode( $esss_options ) . ';';
 
-        // 4. Inject it cleanly right before the script loads
+        // Inject it cleanly right before the script loads
         wp_add_inline_script( 'es-smart-search', $inline_js, 'before' );
-
-        // Localize the script with the REST API endpoint and debug flag
-        // wp_localize_script( 'es-smart-search', 'ESSS', [
-        //     'endpoint' => esc_url_raw( rest_url( 'emporio-search/v1/search' ) ),
-        //     'debug'    => true,
-        // ] );
 
     }
 

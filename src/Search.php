@@ -6,11 +6,22 @@ use WP_Query;
 
 class Search {
 
+    /**
+     * Register REST routes and redirect that maintains hash in url
+     * instead of standard ?param= format
+     *
+     * @return void
+     */
     public function register(): void {
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
         add_action( 'template_redirect', [ $this, 'redirect_query_search' ] );
     }
 
+    /**
+     * Register REST route for the search functionality
+     *
+     * @return void
+     */
     public function register_routes(): void {
         register_rest_route( 'es-smart-search/v1', '/search', [
             'methods'             => \WP_REST_Server::READABLE,
@@ -112,8 +123,15 @@ class Search {
         ] );
     }
 
-    /** @return array<string, int> Weights used to describe active exact filters. */
+    /**
+     * Get the weights for the active filter matches.
+     *
+     * @param array<string, mixed> $filters The active filters.
+     * @return array<string, int> The weights for the matched filters.
+     */
     private function esss_get_filter_match_weights( $filters ) {
+
+        // Define the default weights for each filter group.
         $weights = [
             'colour'      => 70,
             'effect'      => 65,
@@ -127,8 +145,11 @@ class Search {
             'discount'    => 40,
             'quantity'    => 40,
         ];
+
+        // Initialize an array to store the matched filter weights.
         $matched = [];
 
+        // Loop over the active filters and collect their corresponding weights.
         foreach ( $filters as $group => $values ) {
             $group = 'categories' === $group ? 'category' : $group;
             if ( isset( $weights[ $group ] ) ) {
@@ -136,13 +157,22 @@ class Search {
             }
         }
 
+        // Return matches for the active filters.
         return $matched;
     }
 
-    /** @return array<string, string> Active filter values shown in diagnostics. */
+    /**
+     * Extract the active filter values for scoring.
+     *
+     * @param array<string, mixed> $filters The active filters.
+     * @return array<string, string> The extracted filter values for scoring.
+     */
     private function esss_get_filter_match_values( $filters ) {
+
+        // Init matched array for storing filter values.
         $matched = [];
 
+        // Loop over the active filters and collect their corresponding values for scoring.
         foreach ( $filters as $group => $values ) {
             $group = 'categories' === $group ? 'category' : $group;
             $values = is_array( $values ) ? $values : [ $values ];
@@ -175,8 +205,14 @@ class Search {
         return $batches;
     }
 
-    /** @return array<int, array<string, mixed>> Structured records for searchable batches. */
+    /**
+     * Build the array of searchable batches with their fields and normalized text.
+     *
+     * @return array $batches The array of searchable batches with their fields and normalized text.
+     */
     private function esss_build_searchable_batches() {
+
+        // Query all published batches with stock greater than zero and in stock status.
         $query = new WP_Query( [
             'post_type'      => 'batch',
             'post_status'    => 'publish',
@@ -196,8 +232,10 @@ class Search {
             ],
         ] );
 
+        // Array to hold the searchable batch data.
         $batches = [];
 
+        // Loop through the queried batch IDs and build the searchable batch data.
         foreach ( $query->posts as $batch_id ) {
             $product = wc_get_product( $batch_id );
             $fields  = get_fields( $batch_id );
@@ -218,6 +256,7 @@ class Search {
                 is_wp_error( $terms ) ? '' : implode( ' ', $terms ),
             ];
 
+            // Add the searchable batch data to the array, including normalized text and relevant fields.
             $batches[] = [
                 'id'     => (int) $batch_id,
                 'text'   => $this->esss_normalise( implode( ' ', $values ) ),
@@ -235,9 +274,6 @@ class Search {
                     'quantity'  => [ $sqm ],
                     'factory'   => [ $this->esss_normalise( $fields['factory_name'] ?? '' ) ],
                     'product_code' => [ $this->esss_normalise( $fields['product_code'] ?? '' ) ],
-                    'quantity'  => [ $sqm ],
-                    'factory'   => [ $this->esss_normalise( $fields['factory_name'] ?? '' ) ],
-                    'product_code' => [ $this->esss_normalise( $fields['product_code'] ?? '' ) ],
                 ],
             ];
         }
@@ -245,8 +281,15 @@ class Search {
         return $batches;
     }
 
-    /** @return string[] Canonical dimension forms, including centimetre shorthand. */
+    /**
+     * Get the normalized size values for the given dimensions.
+     *
+     * @param array $dimensions
+     * @return array The array of normalized size values.
+     */
     private function esss_get_size_values( $dimensions ) {
+
+        // Normalize the dimensions and prepare the size values array.
         $size = $this->esss_normalise( $dimensions );
         $values = $size ? [ $size ] : [];
 
@@ -257,7 +300,14 @@ class Search {
         return array_values( array_unique( $values ) );
     }
 
-    /** @return bool Whether a batch satisfies every active filter group. */
+
+    /**
+     * Determine if the given fields match the specified filters.
+     *
+     * @param array $fields The batch fields to check.
+     * @param array $filters The active filter groups and their values.
+     * @return bool True if the fields satisfy all filters, false otherwise.
+     */
     private function esss_matches_filters( $fields, $filters ) {
         foreach ( $filters as $group => $values ) {
             $group = 'categories' === $group ? 'category' : $group;
@@ -296,12 +346,23 @@ class Search {
         return true;
     }
 
-    /** @return string Space-separated derived usage labels for the index text. */
+
+    /**
+     * Get the space-separated usage labels for the given finish.
+     *
+     * @param string $finish
+     * @return string Space-separated usage labels derived from the controlled finish rules.
+     */
     private function esss_get_usage( $finish ) {
         return implode( ' ', $this->esss_get_usage_values( $finish ) );
     }
 
-    /** @return string[] Usage labels derived from the controlled finish rules. */
+    /**
+     * Get the usage labels for the given finish as an array.
+     *
+     * @param string $finish
+     * @return array Array of usage labels derived from the controlled finish rules.
+     */
     private function esss_get_usage_values( $finish ) {
         $usage_by_finish = [
             'floor'        => [ 'natural', 'structured' ],
@@ -321,7 +382,13 @@ class Search {
         return $usage;
     }
 
-    /** @return string Scalar and nested ACF values flattened for fallback text. */
+
+    /**
+     * Flatten scalar and nested ACF values into a single space-separated string.
+     *
+     * @param mixed $values Scalar or nested array of values to flatten.
+     * @return string Space-separated flattened values.
+     */
     private function esss_flatten_values( $values ) {
         if ( ! is_array( $values ) ) {
             return (string) $values;
@@ -340,7 +407,13 @@ class Search {
         return implode( ' ', $flattened );
     }
 
-    /** @return string Lowercase, accent-free search text with canonical spacing. */
+
+    /**
+     * Normalise a string for consistent search matching.
+     *
+     * @param string $value
+     * @return string Normalized value with accents removed, lowercased, and special characters replaced.
+     */
     private function esss_normalise( $value ) {
         $value = strtolower( remove_accents( (string) $value ) );
         $value = str_replace( [ '×', '-', '/', ',' ], ' ', $value );
@@ -350,7 +423,15 @@ class Search {
         return trim( $value );
     }
 
-    /** @return int Relevance score, or zero when a required term cannot match. */
+
+    /**
+     * Score the given batch based on weighting and batch values
+     *
+     * @param string $query
+     * @param array $batch
+     * @param array $matched_fields
+     * @return int
+     */
     private function esss_score_batch( $query, $batch, &$matched_fields = [] ) {
         $query = $this->esss_normalise( $query );
         $words = array_filter( preg_split( '/\s+/', $query ) );
