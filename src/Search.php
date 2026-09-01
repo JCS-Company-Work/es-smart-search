@@ -12,7 +12,7 @@ class Search {
     }
 
     public function register_routes(): void {
-        register_rest_route( 'emporio-search/v1', '/search', [
+        register_rest_route( 'es-smart-search/v1', '/search', [
             'methods'             => \WP_REST_Server::READABLE,
             'callback'            => [ $this, 'esss_search' ],
             'permission_callback' => '__return_true',
@@ -57,8 +57,8 @@ class Search {
     /**
      * Search the cached batch index and return ranked matching IDs.
      *
-     * @param WP_REST_Request $request Query and filter parameters.
-     * @return WP_REST_Response
+     * @param \WP_REST_Request $request Query and filter parameters.
+     * @return \WP_REST_Response
      */
     public function esss_search( \WP_REST_Request $request ) {
         $query = trim( (string) $request->get_param( 'q' ) );

@@ -24,3 +24,9 @@ if ( file_exists( ESSS_PATH . 'vendor/autoload.php' ) ) {
 use EsSmartSearch\Plugin;
 
 ( new Plugin() )->boot();
+
+// Register the search reporting activation hook
+register_activation_hook(
+    __FILE__,
+    [ \EsSmartSearch\SearchReporting::class, 'activate' ]
+);

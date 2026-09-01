@@ -54,7 +54,10 @@ export class DisplayService {
    * This provides visual feedback to the user that they can reset the search state.
    */
   renderResetState() {
-    this.app.resetButton?.classList.toggle("active", this.app.hasActiveState());
+    this.app.resetButton?.classList.toggle(
+      "active",
+      this.app.searchService.hasActiveState(),
+    );
   }
 
   /** Clear query, filters, URL state, and product visibility. */

@@ -6,6 +6,7 @@ import { LoadingService } from "./loading.js";
 import { PaginationService } from "./pagination.js";
 import { Helpers } from "./helpers.js";
 import { Events } from "./events.js";
+import { SearchReportingService } from "./Reporting/searchReporting.js";
 
 /** Coordinates search state, URL state, API requests, and product visibility. */
 export default class SmartSearch {
@@ -36,6 +37,7 @@ export default class SmartSearch {
     this.displayService = new DisplayService(this);
     this.helpers = new Helpers(this);
     this.events = new Events(this);
+    this.reportingService = new SearchReportingService(this);
 
     this.paginationContainer = null;
 
