@@ -4,6 +4,8 @@ namespace EsSmartSearch;
 
 use EsSmartSearch\Indexing\SearchIndex;
 use EsSmartSearch\Indexing\SearchMatcher;
+use EsSmartSearch\Indexing\Suggestion\Dictionary;
+use EsSmartSearch\Indexing\Suggestion\Service;
 
 class Search {
 
@@ -11,6 +13,8 @@ class Search {
         // Inject SearchIndex dependency for searching the cached index.
         private SearchIndex $search_index,
         private SearchMatcher $search_matcher,
+        private Dictionary $dictionary,
+        private Service $service,
     ) {}
 
     /**
@@ -150,12 +154,26 @@ class Search {
             return $right['score'] <=> $left['score'];
         } );
 
+        // Initialize the suggestion variable as null
+        $suggestion = null;
+
+        // If no matches were found and the search string wasn't empty, check the vocabulary dictionary
+        if ( empty( $matches ) && '' !== $query ) {
+            $vocabulary = $this->dictionary->get_terms();
+
+            if ( ! empty( $vocabulary ) ) {
+                // Fetch the suggestion via your SearchMatcher using your preferred limit setting (e.g. 1)
+                $suggestion = $this->service->get_suggestions( $query, $vocabulary, 1 );
+            }
+        }
+
         // Return the search results as a REST response.
         return rest_ensure_response( [
             'query'   => $query,
             'matches' => array_map( 'intval', wp_list_pluck( $matches, 'id' ) ),
             'count'   => count( $matches ),
             'ranking' => $matches,
+            'suggestion' => $suggestion,
         ] );
     }
 

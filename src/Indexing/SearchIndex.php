@@ -2,6 +2,8 @@
 
 namespace EsSmartSearch\Indexing;
 
+use EsSmartSearch\Indexing\SearchNormalizer;
+
 use WP_Query;
 
 /**
@@ -117,8 +119,8 @@ final class SearchIndex {
                     'effect'    => array_values( array_filter( [ SearchNormalizer::normalise( is_wp_error( $effects ) ? '' : ( $effects[0] ?? '' ) ) ] ) ),
                     'finish'    => [ SearchNormalizer::normalise( $fields['finish'] ?? '' ) ],
                     'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
-                    'category'  => array_map( [ 'EsSmartSearch\SearchNormalizer', 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
-                    'usage'     => array_map( [ 'EsSmartSearch\SearchNormalizer', 'normalise' ], $this->get_usage_values( $fields['finish'] ?? '' ) ),
+                    'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
+                    'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'] ?? '' ) ),
                     'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) ],
                     'slip_rating' => [ SearchNormalizer::normalise( $fields['slip_rating'] ?? '' ) ],
                     'discount'  => [ SearchNormalizer::normalise( $fields['discount_percentage'] ?? '' ) ],

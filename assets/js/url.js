@@ -78,6 +78,7 @@ export class UrlService {
    * @returns {void}
    */
   writeUrlState() {
+    console.log(this.app.state);
     // Build an array of key-value pairs for the URL hash
     const parts = [];
 
@@ -86,7 +87,7 @@ export class UrlService {
 
     // Check if the current query meets the minimum length for searching
     const hasSearchableQuery =
-      this.app.state.query.length >= this.minimumQueryLength;
+      this.app.state.query.length >= this.app.minimumQueryLength;
 
     // Check if the URL already has a query parameter for textsearch
     const urlHasQuery = window.location.hash.includes("textsearch=");

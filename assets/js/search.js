@@ -21,7 +21,7 @@ export class SearchService {
     const hasFilters = Object.keys(this.app.state.filters).length > 0;
 
     // If there is no query and no filters, show all products and exit early
-    if (!query && !hasFilters) {
+    if (!this.app.state.query && !hasFilters) {
       this.app.displayService.showAllProducts();
       this.app.loadingService.setLoading(false);
       return;
@@ -56,6 +56,14 @@ export class SearchService {
         data.matches,
         data.ranking,
       );
+
+      // If visibleProductCount is zero, show suggestion links if there are any
+      if (visibleProductCount === 0 && data.suggestion) {
+        this.app.displayService.showSuggestion(data.suggestion);
+      }
+
+      // Update the URL state to reflect the current search query and filters
+      this.app.urlService.writeUrlState();
 
       // Record the search query and results for reporting purposes
       this.app.reportingService.record(data, visibleProductCount);

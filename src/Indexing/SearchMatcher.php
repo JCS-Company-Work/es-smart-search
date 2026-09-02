@@ -227,39 +227,52 @@ class SearchMatcher {
         // Enforce strict limits: 4-letter words get 1 typo max. Longer words get 2 typos max.
         $max_allowed_distance = strlen( $word ) <= 4 ? 1 : 2;
 
+        // Loop over each field group that allows fuzzy match to find potential close matches.
         foreach ( $this->fuzzy_groups as $group ) {
-            if ( empty( $fields[ $group ] ) ) {
-                continue;
-            }
+            
+            // Skip field if it doesn't exist in the batch data
+            if ( empty( $fields[ $group ] ) ) continue;
 
+            // Loop over each value in the current field group.
             foreach ( $fields[ $group ] as $value ) {
-                if ( '' === $value ) {
-                    continue;
-                }
+                
+                // Skip empty values early to reduce unnecessary processing.
+                if ( '' === $value ) continue;
 
                 // Split the field text into individual candidate words
                 foreach ( preg_split( '/\s+/', $value ) as $candidate ) {
+                    
                     // Skip short words to prevent false positives
-                    if ( strlen( $word ) < 4 || strlen( $candidate ) < 4 ) {
-                        continue;
-                    }
+                    if ( strlen( $word ) < 4 || strlen( $candidate ) < 4 ) continue;
 
-                    // Calculate the Levenshtein distance
+                    // Calculate the Levenshtein distance 
+                    // (number of single-character edits needed to transform one word into the other)
                     $distance = levenshtein( $word, $candidate );
 
                     // Track the absolute closest match that falls under our strict limit
                     if ( $distance <= $max_allowed_distance && $distance < $closest ) {
+
+                        // Update the closest match and its group.
                         $closest = $distance;
+                        
+                        // Record the group of the closest match.
                         $closest_group = $group;
+
                     }
                 }
             }
         }
 
-        // If we found a valid fuzzy match under our cap, apply a 30% penalty
+        // If we found a valid fuzzy match under our cap, apply a 30% penalty.
         if ( $closest_group !== null && $closest <= $max_allowed_distance ) {
+
+            // Apply a 30% penalty to the weight of the closest fuzzy match because it is not an exact match.
             $fuzzy_weight = (int) ( $this->weights[ $closest_group ] * 0.7 );
+            
+            // Record the penalized fuzzy match in the matched fields array.
             $matched_fields[ $closest_group . '_fuzzy' ] = $fuzzy_weight;
+            
+            // Return the penalized fuzzy match score.
             return $fuzzy_weight;
         }
 
