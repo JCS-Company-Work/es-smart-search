@@ -4,6 +4,25 @@ namespace EsSmartSearch\Indexing;
 
 class SearchMatcher {
 
+    // Define the weights for each field group and the groups that allow fuzzy matching
+    private array $weights = [
+        'product_code' => 100,
+        'size'         => 90,
+        'usage'        => 80,
+        'colour'       => 70,
+        'effect'       => 65,
+        'category'     => 60,
+        'finish'       => 55,
+        'title'        => 50,
+        'factory'      => 35,
+    ];
+
+    // Define the groups that allow fuzzy matching
+    private array $fuzzy_groups = [ 'title', 'colour', 'effect', 'category', 'factory' ];
+
+    // Define a list of common terms to ignore during scoring
+    private array $ignored_terms = [ 'tile', 'tiles', 'porcelain', 'product', 'products' ];
+
     /**
      * Get the weights for the active filter matches.
      *
@@ -62,9 +81,6 @@ class SearchMatcher {
 
         return $matched;
     }
-
-    
-
 
     /**
      * Determine if the given fields match the specified filters.
@@ -125,130 +141,129 @@ class SearchMatcher {
     }
 
     /**
-     * Score the given batch based on weighting and batch values
+     * Score batch based on the query and the batch's field values.
      *
      * @param string $query
      * @param array $batch
      * @param array $matched_fields
-     * @return int
+     * @return integer
      */
-    public function score_batch( $query, $batch, &$matched_fields = [] ) {
-
-        // Normalise the query for consistent matching
-        $query = SearchNormalizer::normalise( $query );
-    
-        // Split the query into individual words
-        $words = array_filter( preg_split( '/\s+/', $query ) );
-    
-        // Initialize the score for this batch
-        $score = 0;
-    
-        // Extract the fields from the batch for scoring
-        $fields = $batch['fields'];
-    
-        // Define the weights for each field group and the groups that allow fuzzy matching
-        $weights = [
-            'product_code' => 100,
-            'size'         => 90,
-            'usage'        => 80,
-            'colour'       => 70,
-            'effect'       => 65,
-            'category'     => 60,
-            'finish'       => 55,
-            'title'        => 50,
-            'factory'      => 35,
-        ];
-
-        // Define the groups that allow fuzzy matching
-        $fuzzy_groups = [ 'title', 'colour', 'effect', 'category', 'factory' ];
+    public function score_batch( string $query, array $batch, array &$matched_fields = [] ): int {
         
-        // Define a list of common terms to ignore during scoring
-        $ignored_terms = [ 'tile', 'tiles', 'porcelain', 'product', 'products' ];
+        // Normalise and split the query into individual words
+        $query = SearchNormalizer::normalise( $query );
+        $words = array_filter( preg_split( '/\s+/', $query ) );
+        
+        $score = 0;
+        $fields = $batch['fields'];
 
         foreach ( $words as $word ) {
-
-            // Skip ignored terms to avoid inflating scores for common words
-            if ( in_array( $word, $ignored_terms, true ) ) continue;
-
-            // Initialize the score for this word within the batch
-            $word_score = 0;
-
-            // Iterate over each field group and its associated weight to calculate the word score
-            foreach ( $weights as $group => $weight ) {
-                foreach ( $fields[ $group ] ?? [] as $value ) {
-                    if ( '' !== $value && false !== strpos( $value, $word ) ) {
-                        $word_score = max( $word_score, $weight );
-                        $matched_fields[ $group ] = $weight;
-                    }
-                }
-            }
-
-            if ( $word_score > 0 ) {
-                $score += $word_score;
+            // Skip common words like "tile" or "porcelain"
+            if ( in_array( $word, $this->ignored_terms, true ) ) {
                 continue;
             }
 
+            // Try to find an exact match first
+            $word_score = $this->calculate_exact_score( $word, $fields, $matched_fields );
+            if ( $word_score > 0 ) {
+                $score += $word_score;
+                continue; // Exact match found! Skip to the next search word.
+            }
+
+            // Hard exclusion rules (e.g., strict category filtering words)
             if ( in_array( $word, [ 'floor', 'wall', 'outdoor' ], true ) || preg_match( '/^\d+x\d+$/', $word ) ) {
                 return 0;
             }
 
-            // Initialize the closest distance and matching group for fuzzy matching
-            $closest = PHP_INT_MAX;
-
-            $closest_group = null;
-
-            // Loop over the fuzzy groups to find the closest match for the word
-            foreach ( $fuzzy_groups as $group ) {
-
-                // Skip empty groups to avoid unnecessary processing
-                if ( empty( $fields[ $group ] ?? [] ) ) continue;
-
-                // Loop over each value in the group to calculate the Levenshtein distance
-                foreach ( $fields[ $group ] ?? [] as $value ) {
-
-                    // Skip empty values to avoid unnecessary processing
-                    if ( '' === $value ) continue;
-
-                    foreach ( preg_split( '/\s+/', $value ) as $candidate ) {
-
-                        // Skip short words to avoid false positives in fuzzy matching
-                        if ( strlen( $word ) < 4 || strlen( $candidate ) < 4 ) continue;
-
-                        // Calculate the distance between the search word and candidate
-                        $distance = levenshtein( $word, $candidate );
-
-                        // Store the closest match and the group it belongs to
-                        if ( $distance < $closest ) {
-
-                            $closest = $distance;
-
-                            $closest_group = $group;
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-            // If a close match was found, award points based on the matching group; otherwise, return 0
-            if ( $closest <= 2 && $closest_group ) {
-
-                $fuzzy_score = (int) ( $weights[ $closest_group ] * 0.3 );
-
-                $score += $fuzzy_score;
-
-                $matched_fields[ $closest_group ] = $fuzzy_score;
-
-            } else {
-
-                return 0;
-
-            }
+            // Fallback to fuzzy matching since exact matching found nothing
+            $score += $this->calculate_fuzzy_score( $word, $fields, $matched_fields );
         }
 
         return $score;
+    }
+
+    /**
+     * Check all fields for an exact substring match of a single word.
+     *
+     * @param string $word           The single search word (e.g., "blue").
+     * @param array  $fields         The batch fields (e.g., $batch['fields']).
+     * @param array  $matched_fields Passed by reference to log what groups matched.
+     * @return int                   The highest exact match score found, or 0.
+     */
+    private function calculate_exact_score( string $word, array $fields, array &$matched_fields ): int {
+        $word_score = 0;
+
+        foreach ( $this->weights as $group => $weight ) {
+            // If this field group doesn't exist in the batch data, skip it
+            if ( empty( $fields[ $group ] ) ) {
+                continue;
+            }
+
+            foreach ( $fields[ $group ] as $value ) {
+                // Check if the search word exists inside the field text
+                if ( '' !== $value && false !== strpos( $value, $word ) ) {
+                    // If a word matches multiple fields, we keep the highest scoring group weight
+                    $word_score = max( $word_score, $weight );
+                    $matched_fields[ $group ] = $weight;
+                }
+            }
+        }
+
+        return $word_score;
+    }
+
+    /**
+    * Check permitted fuzzy groups for close spelling matches.
+    *
+    * @param string $word           The single search word (e.g., "blue").
+    * @param array  $fields         The batch fields.
+    * @param array  $matched_fields Passed by reference to log fuzzy matches.
+    * @return int                   The penalized fuzzy match score, or 0.
+    */
+    private function calculate_fuzzy_score( string $word, array $fields, array &$matched_fields ): int {
+        $closest = PHP_INT_MAX;
+        $closest_group = null;
+        
+        // Enforce strict limits: 4-letter words get 1 typo max. Longer words get 2 typos max.
+        $max_allowed_distance = strlen( $word ) <= 4 ? 1 : 2;
+
+        foreach ( $this->fuzzy_groups as $group ) {
+            if ( empty( $fields[ $group ] ) ) {
+                continue;
+            }
+
+            foreach ( $fields[ $group ] as $value ) {
+                if ( '' === $value ) {
+                    continue;
+                }
+
+                // Split the field text into individual candidate words
+                foreach ( preg_split( '/\s+/', $value ) as $candidate ) {
+                    // Skip short words to prevent false positives
+                    if ( strlen( $word ) < 4 || strlen( $candidate ) < 4 ) {
+                        continue;
+                    }
+
+                    // Calculate the Levenshtein distance
+                    $distance = levenshtein( $word, $candidate );
+
+                    // Track the absolute closest match that falls under our strict limit
+                    if ( $distance <= $max_allowed_distance && $distance < $closest ) {
+                        $closest = $distance;
+                        $closest_group = $group;
+                    }
+                }
+            }
+        }
+
+        // If we found a valid fuzzy match under our cap, apply a 30% penalty
+        if ( $closest_group !== null && $closest <= $max_allowed_distance ) {
+            $fuzzy_weight = (int) ( $this->weights[ $closest_group ] * 0.7 );
+            $matched_fields[ $closest_group . '_fuzzy' ] = $fuzzy_weight;
+            return $fuzzy_weight;
+        }
+
+        return 0;
     }
 
 }

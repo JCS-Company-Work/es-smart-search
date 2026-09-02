@@ -16,14 +16,17 @@ Run tests:
 composer test
 ```
 
-Current tests cover registration and index invalidation hooks.
+Current tests cover registration, search responses, and index invalidation hooks.
 
 ## Tests To Add
 
-Add focused PHP tests for:
+Add focused PHP tests for `SearchMatcher` covering:
 
+- exact field-weight ranking and matched-field reporting;
+- ignored terms and strict exclusions such as `floor`, `wall`, `outdoor`, and dimensions;
+- permitted fuzzy fields, edit-distance limits, short-word rejection, and the fuzzy score penalty;
+- filter aliases, all-filter matching, and quantity bands such as `sqm-10-20` and `sqm-20+`;
 - query normalisation, especially `60x60`, `60 x 60`, and `600x600`;
-- matching and ranking rules;
 - synonyms and misspellings, including `carrera` and `carrara`;
 - reporting table creation and event validation.
 
