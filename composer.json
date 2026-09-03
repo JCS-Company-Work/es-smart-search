@@ -23,6 +23,8 @@
     "brain/monkey": "^2.7"
   },
   "scripts": {
-    "test": "phpunit --bootstrap vendor/autoload.php tests"
+    "test": "@test:unit",
+    "test:unit": "phpunit --configuration phpunit.xml.dist",
+    "test:integration": "ESSS_INTEGRATION_TESTS=1 phpunit --configuration phpunit.integration.xml.dist"
   }
 }

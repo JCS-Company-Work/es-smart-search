@@ -4,7 +4,7 @@ namespace EsSmartSearch\Tests;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
-use EsSmartSearch\Assets;
+use EsSmartSearch\Assets\Assets;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DoesNotPerformAssertions;
 

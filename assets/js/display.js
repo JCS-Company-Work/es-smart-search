@@ -231,6 +231,10 @@ export class DisplayService {
       searchInput.value = suggestion;
     }
 
+    this.app.state.page = 1;
+    this.app.urlService.writeUrlState();
+    this.renderResetState();
+
     // Execute the search with the updated query
     this.app.searchService.execute();
 

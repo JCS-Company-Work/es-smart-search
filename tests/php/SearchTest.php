@@ -4,7 +4,11 @@ namespace EsSmartSearch\Tests;
 
 use Brain\Monkey;
 use Brain\Monkey\Functions;
-use EsSmartSearch\Search;
+use EsSmartSearch\Search\Search;
+use EsSmartSearch\Indexing\SearchIndex;
+use EsSmartSearch\Indexing\SearchMatcher;
+use EsSmartSearch\Indexing\Suggestion\Dictionary;
+use EsSmartSearch\Indexing\Suggestion\Service;
 use PHPUnit\Framework\Attributes\DoesNotPerformAssertions;
 use PHPUnit\Framework\TestCase;
 
@@ -39,7 +43,13 @@ final class SearchTest extends TestCase {
     public function test_constructor_does_not_register_hooks(): void {
         Functions\expect( 'add_action' )->never();
 
-        new Search();
+        $dictionary = new Dictionary();
+        $service = new Service();
+        $search_index = new SearchIndex();
+        $search_matcher = new SearchMatcher();
+
+        // Constructing Search must not register its hooks until register() is called.
+        new Search( $search_index, $search_matcher, $dictionary, $service );
     }
 
     /**
@@ -47,7 +57,12 @@ final class SearchTest extends TestCase {
      */
     #[DoesNotPerformAssertions]
     public function test_register_adds_the_rest_route_hook(): void {
-        $search = new Search();
+        $dictionary = new Dictionary();
+        $service = new Service();
+        $search_index = new SearchIndex();
+        $search_matcher = new SearchMatcher();
+
+        $search = new Search( $search_index, $search_matcher, $dictionary, $service );
 
         Functions\expect( 'add_action' )
             ->once()

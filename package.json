@@ -1,0 +1,12 @@
+{
+  "name": "@emporiosurfaces/es-smart-search",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:smart-search": "playwright test tests/e2e/smart-search.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
