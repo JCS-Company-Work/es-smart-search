@@ -28,5 +28,5 @@ use EsSmartSearch\Plugin;
 // Register the search reporting activation hook
 register_activation_hook(
     __FILE__,
-    [ \EsSmartSearch\SearchReporting::class, 'activate' ]
+    [ \EsSmartSearch\Reporting\SearchReporting::class, 'activate' ]
 );

@@ -2,6 +2,7 @@
 
 namespace EsSmartSearch;
 
+use EsSmartSearch\Admin\Settings;
 use EsSmartSearch\Assets\Assets;
 use EsSmartSearch\Search\Search;
 use EsSmartSearch\Indexing\SearchIndex;
@@ -42,5 +43,7 @@ class Plugin {
         // Create a SearchReporting instance and register its hooks.
         ( new SearchReporting() )->register();
         
+        // Register the Settings hooks.
+        Settings::boot();
     }
 }

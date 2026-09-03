@@ -24,16 +24,50 @@ class Dictionary {
         'usage'
     ];
 
+    // Array to hold terms that should be ignored when building the dictionary.
+    private array $blacklist = [];
+
+    /**
+     * Fetch and process the blacklist strings exactly once on instantiation.
+     */
+    public function __construct() {
+
+        // Fetch the raw blacklist string from the WordPress options table.
+        $raw_blacklist   = get_option( 'esss_ignored_terms', '' );
+        
+        // Convert the raw blacklist string to lowercase and split it into individual terms.
+        $parsed_terms    = array_map( 'trim', explode( ',', strtolower( $raw_blacklist ) ) );
+        
+        // Filter out any empty strings resulting from the split operation.
+        $this->blacklist = array_filter( $parsed_terms ); 
+
+    }
+
     /**
      * Register the class with WordPress hooks.
      */
-    public static function register(): void {
+    public static function boot(): void {
         $instance = new self();
-        
-        // Hooks directly into itself
-        add_action( 'acf/save_post', [ $instance, 'rebuild' ], 20, 1 );
-        add_action( 'save_post_product', [ $instance, 'rebuild' ], 20, 3 );
+        add_action( 'save_post_product', [ $instance, 'handle_product_save' ], 20, 3 );
+    }
 
+    /**
+     * Handle the product save action and trigger a dictionary rebuild if necessary.
+     *
+     * @param int $post_id
+     * @param \WP_Post $post
+     * @param bool $update
+     */
+    public function handle_product_save( int $post_id, \WP_Post $post, bool $update ): void {
+        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+            return;
+        }
+
+        $this->rebuild();
     }
 
     /**
@@ -126,9 +160,13 @@ class Dictionary {
             // Strip punctuation and keep words longer than 3 characters
             $clean_word = preg_replace( '/[^\w\s]/u', '', $word );
 
-            if ( strlen( $clean_word ) >= 4 ) {
-                $unique_words[] = $clean_word;
+            // If the word is 3 chars or less, or is in the blacklist, skip it.
+            if ( strlen( $clean_word ) < 3 || in_array( $clean_word, $this->blacklist, true ) ) {
+                continue;
             }
+
+            // Add the clean word to the unique words array.
+            $unique_words[] = $clean_word;
         }
     }
 }

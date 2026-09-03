@@ -6,6 +6,19 @@ use EsSmartSearch\Indexing\SearchNormalizer;
 
 class Service {
 
+    // Define private properties to hold settings in memory
+    private int $max_distance_short;
+    private int $max_distance_long;
+
+    /**
+     * Pull settings from options table once on boot
+     */
+    public function __construct() {
+        // Fetch values once and cache them in memory with safe fallbacks
+        $this->max_distance_short = (int) get_option( 'esss_max_distance_short', 1 );
+        $this->max_distance_long  = (int) get_option( 'esss_max_distance_long', 2 );
+    }
+
     /**
      * Get search suggestions based on the query and cached dictionary.
      *
@@ -43,11 +56,10 @@ class Service {
 
             // Array to hold candidate corrections for the current word
             $candidates = [];
-
+            
             // Determine the maximum allowed Levenshtein distance based on word length
-            $max_allowed_distance = strlen( $word ) <= 4 ? 2 : 4;
-error_log( "Max allowed distance for word '{$word}': {$max_allowed_distance}" );
-error_log("cached dictionary: " . print_r($cached_dictionary, true));
+            $max_allowed_distance = $this->max_allowed_distance( $word );
+
             // Loop through each valid term in the cached dictionary to find close matches
             foreach ( $cached_dictionary as $valid_term ) {
 
@@ -95,7 +107,7 @@ error_log("cached dictionary: " . print_r($cached_dictionary, true));
         $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {
             return $phrase !== $query;
         });
-error_log(print_r( $phrases, true ));
+
         // Limit the number of final suggestions to the specified limit
         $final_suggestions = array_slice( array_values( $phrases ), 0, $limit );
 
@@ -151,5 +163,26 @@ error_log(print_r( $phrases, true ));
 
         // Return the generated phrase combinations.
         return $results;
+    }
+
+    /**
+     * Determine the max allowed distance based on the word length. 
+     * Under 3 characters, no distance is allowed. For short words, 
+     * use the short distance setting. For longer words, use the long distance setting.
+     *
+     * @param string $word
+     * @return integer
+     */
+    private function max_allowed_distance( string $word ): int {
+
+        // Get the length of the word to determine the max allowed distance.
+        $word_length = strlen( $word );
+    
+        // Return word length value based on the defined distance settings.
+        return match ( true ) {
+            $word_length <= 3 => 0,
+            $word_length <= 5 => $this->max_distance_short,
+            default           => $this->max_distance_long,
+        };
     }
 }
