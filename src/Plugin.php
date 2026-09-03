@@ -6,8 +6,8 @@ use EsSmartSearch\Assets\Assets;
 use EsSmartSearch\Search\Search;
 use EsSmartSearch\Indexing\SearchIndex;
 use EsSmartSearch\Indexing\SearchMatcher;
-use EsSmartSearch\Indexing\Suggestion\Dictionary;
-use EsSmartSearch\Indexing\Suggestion\Service;
+use EsSmartSearch\Suggestion\Dictionary;
+use EsSmartSearch\Suggestion\Service;
 use EsSmartSearch\Reporting\SearchReporting;
 
 class Plugin {
@@ -25,7 +25,6 @@ class Plugin {
         // Register the SearchSuggestionDictionary hooks.
         $dictionary = new Dictionary();
         $dictionary->register();
-        //$dictionary->rebuild();
 
         $service = new Service();
 

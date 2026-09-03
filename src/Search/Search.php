@@ -4,8 +4,8 @@ namespace EsSmartSearch\Search;
 
 use EsSmartSearch\Indexing\SearchIndex;
 use EsSmartSearch\Indexing\SearchMatcher;
-use EsSmartSearch\Indexing\Suggestion\Dictionary;
-use EsSmartSearch\Indexing\Suggestion\Service;
+use EsSmartSearch\Suggestion\Dictionary;
+use EsSmartSearch\Suggestion\Service;
 
 class Search {
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace EsSmartSearch\Indexing\Suggestion;
+namespace EsSmartSearch\Suggestion;
 
 use EsSmartSearch\Indexing\SearchNormalizer;
 
