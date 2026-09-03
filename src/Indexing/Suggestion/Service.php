@@ -87,8 +87,8 @@ class Service {
             return null;
         }
 
-        // Generate all possible phrase combinations from the correction slots
-        $phrases = $this->generate_phrase_combinations( $slots );
+        // Generate only the number of phrase combinations the caller can receive.
+        $phrases = $this->generate_phrase_combinations( $slots, $limit );
         
         // Filter out the original query from the generated phrases
         $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {
@@ -120,7 +120,11 @@ class Service {
      * @param integer $index
      * @return array
      */
-    private function generate_phrase_combinations( array $slots, int $index = 0 ): array {
+    private function generate_phrase_combinations( array $slots, int $limit, int $index = 0 ): array {
+
+        if ( $limit <= 0 ) {
+            return [];
+        }
         
         // If the current index exceeds the number of slots, return an array with an empty string as the base case.
         if ( $index >= count( $slots ) ) {
@@ -131,12 +135,16 @@ class Service {
         $results = [];
 
         // Recursively generate combinations for the remaining slots.
-        $sub_combinations = $this->generate_phrase_combinations( $slots, $index + 1 );
+        $sub_combinations = $this->generate_phrase_combinations( $slots, $limit, $index + 1 );
 
         // Combine each word in the current slot with each of the sub-combinations.
         foreach ( $slots[ $index ] as $word ) {
             foreach ( $sub_combinations as $combination ) {
                 $results[] = trim( $word . ' ' . $combination );
+
+                if ( count( $results ) >= $limit ) {
+                    return $results;
+                }
             }
         }
 
