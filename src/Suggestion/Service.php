@@ -101,7 +101,7 @@ class Service {
         }
 
         // Generate only the number of phrase combinations the caller can receive.
-        $phrases = $this->generate_phrase_combinations( $slots, $limit );
+        $phrases = $this->generate_phrase_combinations( $slots, $limit, 0 );
         
         // Filter out the original query from the generated phrases
         $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {

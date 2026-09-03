@@ -29,6 +29,10 @@ class Settings {
         register_setting( 'es_smart_search_group', 'esss_max_distance_long', [ 'type' => 'integer', 'default' => 2 ] );
         register_setting( 'es_smart_search_group', 'esss_ignored_terms', [ 'type' => 'string', 'default' => '' ] );
         register_setting( 'es_smart_search_group', 'esss_manual_additions', [ 'type' => 'string', 'default' => '' ] );
+
+        // Register the suggestions limit setting
+        register_setting( 'es_smart_search_group', 'esss_suggestions_limit', [ 'type' => 'integer', 'default' => 1 ] );
+
     }
 
     public function render_settings_form(): void {
@@ -70,7 +74,13 @@ class Settings {
                                     <p class="description">Recommended value: 2. Controls long keywords like "marble" or "concrete".</p>
                                 </td>
                             </tr>
-                            
+                            <tr>
+                                <th scope="row"><label for="esss_suggestions_limit">Maximum Suggestions Limit</label></th>
+                                <td>
+                                    <input type="number" name="esss_suggestions_limit" id="esss_suggestions_limit" value="<?php echo esc_attr( get_option( 'esss_suggestions_limit', 1 ) ); ?>" min="1" max="5" class="small-text">
+                                    <p class="description">Controls how many phrase combinations to generate when a search fails.</p>
+                                </td>
+                            </tr>
                             <tr>
                                 <th scope="row"><label for="esss_manual_additions">Manually Add Words</label></th>
                                 <td>

@@ -162,8 +162,12 @@ class Search {
             $vocabulary = $this->dictionary->get_terms();
 
             if ( ! empty( $vocabulary ) ) {
+
+                // Fetch suggestion limit value from the settings
+                $suggestions_limit = get_option( 'esss_suggestions_limit', 1 ); 
+
                 // Fetch the suggestion via your SearchMatcher using your preferred limit setting (e.g. 1)
-                $suggestion = $this->service->get_suggestions( $query, $vocabulary, 1 );
+                $suggestion = $this->service->get_suggestions( $query, $vocabulary, $suggestions_limit );
             }
         }
 
