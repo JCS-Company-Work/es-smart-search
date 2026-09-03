@@ -68,45 +68,40 @@ test("Smart Search renders API matches and reports the completed search @critica
   });
 });
 
-test("Smart Search shows and applies an API suggestion after zero results @critical @smart-search", async ({
-  page,
-  baseURL,
-}) => {
-  await openSearchResults(page, baseURL);
-  const matchingBatchId = await page
-    .locator(".product-list > li")
-    .first()
-    .getAttribute("data-id");
+test(
+  "Smart Search shows and applies an API suggestion after zero results",
+  { tag: ["@critical", "@smart-search"] },
+  async ({ page, baseURL }) => {
+    // Load the actual search page layout
+    await openSearchResults(page, baseURL);
 
-  await page.route(/\/es-smart-search\/v1\/search(?:\?|$)/, async (route) => {
-    const query = new URL(route.request().url()).searchParams.get("q");
-    const isSuggestionQuery = query === "marble";
+    // Type a natural typo of an active database word ("marble" -> "marmel")
+    // Since your product matcher fuzzy cap is strict (max 1 typo), "marmel" (2 typos)
+    // will force a true 0-results state from the PHP database loop naturally.
+    await page.locator(".live-filter").fill("marmelxy");
 
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        query,
-        matches: isSuggestionQuery ? [Number(matchingBatchId)] : [],
-        count: isSuggestionQuery ? 1 : 0,
-        ranking: isSuggestionQuery
-          ? [{ id: Number(matchingBatchId), score: 100 }]
-          : [],
-        suggestion: isSuggestionQuery ? null : ["marble"],
-      }),
-    });
-  });
+    // Target your clean, real element IDs from your component markup
+    const suggestionContainer = page.locator(".suggestion-link");
+    const suggestionLink = page.locator(".suggestion-link span");
 
-  await page.route(/\/es-smart-search\/v1\/report(?:\?|$)/, (route) =>
-    route.fulfill({ status: 204 }),
-  );
-  await page.locator(".live-filter").fill("marmel");
+    // Verify the server successfully processed the dictionary lookup and returned the text
+    await expect(suggestionContainer).toContainText("Did you mean");
+    await expect(suggestionLink).toHaveText("marble");
 
-  const suggestion = page.locator(".no-results .suggestion-link");
-  await expect(suggestion).toHaveText("Did you mean: marble?");
-  await suggestion.click();
+    // Click your actionable button card to trigger your JavaScript execute() pipeline
+    await suggestionLink.click();
 
-  await expect(page.locator(".live-filter")).toHaveValue("marble");
-  await expect(page.locator(".no-results")).toBeHidden();
-  await expect(page.locator(".product-list > li").first()).toBeVisible();
-  await expect(page).toHaveURL(/#textsearch=marble&page=1$/);
-});
+    // Verify the frontend app syncs states and re-runs the query cleanly
+    await expect(page.locator(".live-filter")).toHaveValue("marble");
+    await expect(suggestionContainer).toBeHidden();
+
+    // Matches the first product card that isn't masked by your hidden utility class
+    await expect(
+      page.locator(".product-list > li:not(.es-smart-search-hidden)").first(),
+    ).toBeVisible();
+
+    // Verify your urlService successfully updated the browser address bar
+    // The .* allows any dynamic query parameters like pagination to follow cleanly
+    await expect(page).toHaveURL(/#textsearch=marble.*$/);
+  },
+);

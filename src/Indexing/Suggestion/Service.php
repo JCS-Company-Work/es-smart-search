@@ -16,12 +16,12 @@ class Service {
      * @param string $query
      * @param array $cached_dictionary
      * @param integer $limit
-     * @return string|string[]|null
+     * @return array|null
      */
     public function get_suggestions( string $query, array $cached_dictionary, int $limit = 1 ) {
 
         // Normalise user query
-        $query = SearchNormalizer::normalise(                            $query );
+        $query = SearchNormalizer::normalise( $query );
     
         // Split the query into individual words
         $words = array_filter( preg_split( '/\s+/', $query ) );
@@ -46,7 +46,8 @@ class Service {
 
             // Determine the maximum allowed Levenshtein distance based on word length
             $max_allowed_distance = strlen( $word ) <= 4 ? 2 : 4;
-
+error_log( "Max allowed distance for word '{$word}': {$max_allowed_distance}" );
+error_log("cached dictionary: " . print_r($cached_dictionary, true));
             // Loop through each valid term in the cached dictionary to find close matches
             foreach ( $cached_dictionary as $valid_term ) {
 
@@ -94,7 +95,7 @@ class Service {
         $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {
             return $phrase !== $query;
         });
-
+error_log(print_r( $phrases, true ));
         // Limit the number of final suggestions to the specified limit
         $final_suggestions = array_slice( array_values( $phrases ), 0, $limit );
 
@@ -103,7 +104,7 @@ class Service {
             return null;
         }
 
-        return 1 === $limit ? $final_suggestions[0] : $final_suggestions;
+        return 1 === count($final_suggestions) ? [$final_suggestions[0]] : $final_suggestions;
     }
 
     /**

@@ -1,12 +1,13 @@
-import { DisplayService } from "./display.js";
-import { UrlService } from "./url.js";
-import { SearchService } from "./search.js";
-import { FilterService } from "./filters.js";
-import { LoadingService } from "./loading.js";
-import { PaginationService } from "./pagination.js";
-import { Helpers } from "./helpers.js";
-import { Events } from "./events.js";
-import { SearchReportingService } from "./Reporting/searchReporting.js";
+import { DisplayService } from "./services/display.js";
+import { UrlService } from "./services/url.js";
+import { SearchService } from "./services/search.js";
+import { SuggestionService } from "./services/suggestions.js";
+import { FilterService } from "./services/filters.js";
+import { LoadingService } from "./services/loading.js";
+import { PaginationService } from "./services/pagination.js";
+import { Helpers } from "./utils/helpers.js";
+import { Events } from "./controllers/events.js";
+import { SearchReportingService } from "./services/searchReporting.js";
 
 /** Coordinates search state, URL state, API requests, and product visibility. */
 export default class SmartSearch {
@@ -59,6 +60,7 @@ export default class SmartSearch {
     this.helpers = new Helpers(this);
     this.events = new Events(this);
     this.reportingService = new SearchReportingService(this);
+    this.suggestionService = new SuggestionService(this);
   }
 
   /**

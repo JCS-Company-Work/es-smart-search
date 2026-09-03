@@ -31,19 +31,9 @@ class Dictionary {
         $instance = new self();
         
         // Hooks directly into itself
-        add_action( 'acf/save_post', [ $instance, 'handle_acf_save' ], 20, 1 );
-    }
+        add_action( 'acf/save_post', [ $instance, 'rebuild' ], 20, 1 );
+        add_action( 'save_post_product', [ $instance, 'rebuild' ], 20, 3 );
 
-    /**
-     * Action hook callback to intercept product saves.
-     * @param int|string $post_id The ID of the post being saved.
-     */
-    public function handle_acf_save( $post_id ): void {
-        if ( ! is_numeric( $post_id ) || 'product' !== get_post_type( $post_id ) ) {
-            return;
-        }
-
-        $this->rebuild();
     }
 
     /**
@@ -61,7 +51,9 @@ class Dictionary {
      * @return bool True on successful update, false otherwise.
      */
     public function rebuild(): bool {
+
         global $wpdb;
+        
         $unique_words = [];
 
         if ( empty( $this->target_acf_fields ) ) {
@@ -100,6 +92,21 @@ class Dictionary {
 
             $this->extract_clean_words( $value, $unique_words );
         }
+
+        // Include terms from the 'effects' taxonomy in the dictionary.
+        $effect_terms = get_terms( [
+            'taxonomy'   => 'effect', 
+            'hide_empty' => true,
+        ] );
+
+        if ( ! is_wp_error( $effect_terms ) && ! empty( $effect_terms ) ) {
+            foreach ( $effect_terms as $term ) {
+                $this->extract_clean_words( $term->name, $unique_words );
+            }
+        }
+
+        // If there are no unique words extracted, return false early.
+        if ( empty( $unique_words ) ) return false;
 
         // Deduplicate the array and clean up keys
         $final_dictionary = array_values( array_unique( $unique_words ) );

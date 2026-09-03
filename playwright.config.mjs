@@ -10,7 +10,7 @@ export default defineConfig({
     trace: "on",
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
-    video: "on",
+    video: "retain-on-failure",
     screenshot: "only-on-failure",
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "https://emporiosurfaces.local",
   },

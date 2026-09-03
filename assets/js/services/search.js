@@ -59,7 +59,7 @@ export class SearchService {
 
       // If visibleProductCount is zero, show suggestion links if there are any
       if (visibleProductCount === 0 && data.suggestion) {
-        this.app.displayService.showSuggestion(data.suggestion);
+        this.app.suggestionService.showSuggestion(data.suggestion);
       }
 
       // Update the URL state to reflect the current search query and filters

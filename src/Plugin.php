@@ -25,7 +25,7 @@ class Plugin {
         // Register the SearchSuggestionDictionary hooks.
         $dictionary = new Dictionary();
         $dictionary->register();
-        $dictionary->rebuild();
+        //$dictionary->rebuild();
 
         $service = new Service();
 
