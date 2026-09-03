@@ -26,6 +26,7 @@ class Dictionary {
 
     // Array to hold terms that should be ignored when building the dictionary.
     private array $blacklist = [];
+    private array $manual_additions = [];
 
     /**
      * Fetch and process the blacklist strings exactly once on instantiation.
@@ -41,33 +42,60 @@ class Dictionary {
         // Filter out any empty strings resulting from the split operation.
         $this->blacklist = array_filter( $parsed_terms ); 
 
+        // Fetch manual entries additions list from the WordPress options table.
+        $raw_additions = get_option( 'esss_manual_additions', '' );
+        $parsed_additions = array_map( 'trim', explode( ',', strtolower( $raw_additions ) ) );
+        $this->manual_additions = array_filter( $parsed_additions );
+
     }
 
     /**
-     * Register the class with WordPress hooks.
+     * Register hooks to update manual additions and ignored terms
      */
-    public static function boot(): void {
-        $instance = new self();
-        add_action( 'save_post_product', [ $instance, 'handle_product_save' ], 20, 3 );
+    public static function register(): void {
+
+        // Update dictionary on product save
+        add_action( 'save_post_product', [ self::class, 'handle_product_save' ], 20, 3 );
+
+        // Update manual additions and ignored in wp_options when they are created/updated and rebuild the dictionary
+        add_action( 'add_option_esss_manual_additions',    [ self::class, 'handle_options_save' ], 20, 0 );
+        add_action( 'update_option_esss_manual_additions', [ self::class, 'handle_options_save' ], 20, 0 );
+        add_action( 'add_option_esss_ignored_terms',       [ self::class, 'handle_options_save' ], 20, 0 );
+        add_action( 'update_option_esss_ignored_terms',    [ self::class, 'handle_options_save' ], 20, 0 );
     }
 
     /**
-     * Handle the product save action and trigger a dictionary rebuild if necessary.
-     *
-     * @param int $post_id
-     * @param \WP_Post $post
-     * @param bool $update
+     * Rebuild wrapper for product saves.
      */
-    public function handle_product_save( int $post_id, \WP_Post $post, bool $update ): void {
-        if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+    public static function handle_product_save( int $post_id ): void {
+
+        // If user cannot edit the post, bail early.
+        if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'edit_post', $post_id ) ) {
             return;
         }
 
-        if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        // Instantiate the dictionary object.
+        $dictionary = new self();
+
+        // Rebuild the dictionary.
+        $dictionary->rebuild();
+    }
+
+    /**
+     * Rebuild wrapper for options panel updates.
+     */
+    public static function handle_options_save(): void {
+
+        // If user cannot manage options, bail early.
+        if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
-        $this->rebuild();
+        // Instantiate the dictionary object.
+        $dictionary = new self();
+
+        // Rebuild the dictionary.
+        $dictionary->rebuild();
     }
 
     /**
@@ -139,34 +167,53 @@ class Dictionary {
             }
         }
 
+                // Merge manual additions directly into the unique pool
+        if ( ! empty( $this->manual_additions ) ) {
+            foreach ( $this->manual_additions as $word ) {
+                $clean_word = preg_replace( '/[^\w\s]/u', '', SearchNormalizer::normalise( $word ) );
+                if ( strlen( $clean_word ) >= 3 ) {
+                    $unique_words[] = $clean_word;
+                }
+            }
+        }
+
         // If there are no unique words extracted, return false early.
         if ( empty( $unique_words ) ) return false;
 
+        // Clean out duplicates first
+        $unique_words = array_unique( $unique_words );
+
+        // Move the blacklist check here to filter out words found in the automated DB rows
+        if ( ! empty( $this->blacklist ) ) {
+            $unique_words = array_filter( $unique_words, function( $word ) {
+                return ! in_array( $word, $this->blacklist, true );
+            });
+        }
+
         // Deduplicate the array and clean up keys
-        $final_dictionary = array_values( array_unique( $unique_words ) );
+        $final_dictionary = array_values( $unique_words );
 
         // Save to WordPress options table permanently
         return update_option( self::CACHE_KEY, $final_dictionary );
     }
 
     /**
-     * Helper to split text strings down into valid index words.
+     * Helper to split text strings down into valid index words using the pre-parsed memory blacklist array.
      */
     private function extract_clean_words( string $text, array &$unique_words ): void {
         $normalised = SearchNormalizer::normalise( $text );
         $words = array_filter( preg_split( '/\s+/', $normalised ) );
 
         foreach ( $words as $word ) {
-            // Strip punctuation and keep words longer than 3 characters
             $clean_word = preg_replace( '/[^\w\s]/u', '', $word );
 
-            // If the word is 3 chars or less, or is in the blacklist, skip it.
-            if ( strlen( $clean_word ) < 3 || in_array( $clean_word, $this->blacklist, true ) ) {
+            // Removed the blacklist array check from here to allow global post-processing override
+            if ( strlen( $clean_word ) < 3 ) {
                 continue;
             }
 
-            // Add the clean word to the unique words array.
             $unique_words[] = $clean_word;
         }
     }
+
 }
