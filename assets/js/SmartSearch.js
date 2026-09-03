@@ -11,6 +11,20 @@ import { SearchReportingService } from "./Reporting/searchReporting.js";
 /** Coordinates search state, URL state, API requests, and product visibility. */
 export default class SmartSearch {
   constructor() {
+    // Create initial state
+    this.createInitialState();
+
+    // Initialise all the services required for the smart search functionality
+    this.initialiseServices();
+
+    // Initialise controllers for DOM elements, timers, and request state
+    this.initControllers();
+  }
+
+  /**
+   * Create initial search state and set the minimum query length.
+   */
+  createInitialState() {
     // Current search state, including query, filters, and page number.
     this.state = {
       // Current search query string
@@ -28,7 +42,14 @@ export default class SmartSearch {
       },
     };
 
-    // Initialise services and pass the main SmartSearch instance to them for context
+    // Minimum query length required to trigger a search request.
+    this.minimumQueryLength = 3;
+  }
+
+  /**
+   * Initialise services and pass the main SmartSearch instance to them for context
+   */
+  initialiseServices() {
     this.searchService = new SearchService(this);
     this.filterService = new FilterService(this);
     this.urlService = new UrlService(this);
@@ -38,10 +59,14 @@ export default class SmartSearch {
     this.helpers = new Helpers(this);
     this.events = new Events(this);
     this.reportingService = new SearchReportingService(this);
+  }
 
-    this.paginationContainer = null;
-
+  /**
+   * Initialise controllers for DOM elements, timers, and request state.
+   */
+  initControllers() {
     // Controller properties for DOM elements, timers, and request state.
+    this.paginationContainer = null;
     this.input = null;
     this.productList = null;
     this.stats = null;
@@ -50,19 +75,23 @@ export default class SmartSearch {
     this.loading = null;
     this.requestController = null;
     this.searchTimer = null;
-
-    // Minimum query length required to trigger a search request.
-    this.minimumQueryLength = 3;
-
-    // Store the original product order for restoring when no search is active
     this.originalProductOrder = [];
-
-    // Array to hold parent product cards for pagination purposes
     this.parentProducts = [];
   }
 
   /** Find the search UI, restore URL state, and start active searches. */
   init() {
+    this.queryDomElements();
+
+    if (!this.isValidEnvironment()) return;
+
+    this.boot();
+  }
+
+  /**
+   * Queries and stores references to all necessary DOM elements for the search functionality.
+   */
+  queryDomElements() {
     // Get search input from DOM
     this.input = document.querySelector(".live-filter");
 
@@ -84,12 +113,18 @@ export default class SmartSearch {
 
     // Get reset button from DOM
     this.resetButton = document.getElementById("reset-filters");
+  }
 
-    // If input, products or ESSS endpoint is missing, abort initialization
-    if (!this.input || !this.productList || !window.ESSS) {
-      return;
-    }
+  isValidEnvironment() {
+    return Boolean(this.input && this.productList && window.ESSS);
+  }
 
+  /**
+   * Boots the search functionality by initializing the product order, loading indicator,
+   * reading the URL state, binding events, rendering the initial UI state, and executing
+   * an initial search if there is an active query or filter.
+   */
+  boot() {
     // Store the original product order for restoring when no search is active
     this.originalProductOrder = Array.from(
       this.productList.querySelectorAll(":scope > li"),
@@ -117,7 +152,7 @@ export default class SmartSearch {
     if (window.ESSS.debug) {
       console.info("[ES Smart Search] initialised", {
         minimumQueryLength: this.minimumQueryLength,
-        endpoint: ESSS.endpoint,
+        endpoint: window.ESSS.endpoint,
       });
     }
 
@@ -127,7 +162,6 @@ export default class SmartSearch {
     }
   }
 }
-
 // Initialize the ESSmartSearch instance when the DOM content is fully loaded, ensuring that the search functionality is ready to use.
 document.addEventListener(
   "DOMContentLoaded",

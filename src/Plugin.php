@@ -2,8 +2,8 @@
 
 namespace EsSmartSearch;
 
-use EsSmartSearch\Assets;
-use EsSmartSearch\Search;
+use EsSmartSearch\Assets\Assets;
+use EsSmartSearch\Search\Search;
 use EsSmartSearch\Indexing\SearchIndex;
 use EsSmartSearch\Indexing\SearchMatcher;
 use EsSmartSearch\Indexing\Suggestion\Dictionary;

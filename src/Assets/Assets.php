@@ -1,6 +1,6 @@
 <?php
 
-namespace EsSmartSearch;
+namespace EsSmartSearch\Assets;
 
 class Assets {
 

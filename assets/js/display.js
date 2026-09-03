@@ -212,6 +212,8 @@ export class DisplayService {
   displaySuggestions(suggestionLink) {
     this.app.noResults.innerHTML = "";
     this.app.noResults.appendChild(suggestionLink);
+    this.app.noResults.appendChild(suggestionLink);
+
     this.app.noResults.style.display = "block";
   }
 

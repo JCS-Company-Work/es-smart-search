@@ -1,6 +1,6 @@
 <?php
 
-namespace EsSmartSearch;
+namespace EsSmartSearch\Search;
 
 use EsSmartSearch\Indexing\SearchIndex;
 use EsSmartSearch\Indexing\SearchMatcher;
