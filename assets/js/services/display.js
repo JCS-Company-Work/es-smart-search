@@ -62,7 +62,8 @@ export class DisplayService {
       "Handling zero results fallback with popularFallback:",
       popularFallback,
     );
-    // PATH 2: TRUE DEAD END (0 Results & 0 Suggestions) -> LOAD RECOVERY PILLS
+
+    // If there are popular fallback terms, display them as clickable trend pills.
     if (Array.isArray(popularFallback) && popularFallback.length > 0) {
       const trendsContainer = document.createElement("div");
       trendsContainer.classList.add("esss-popular-fallback-panel");
@@ -77,12 +78,12 @@ export class DisplayService {
       popularFallback.forEach((term) => {
         const pill = document.createElement("a");
         pill.classList.add("esss-trend-pill");
-        pill.href = "#";
+        pill.href = `${window.location.origin}/collections/search-results/#textsearch=${encodeURIComponent(term)}`;
         pill.textContent = term;
 
         pill.addEventListener("click", (event) => {
           event.preventDefault();
-          this.loadSuggestion(term);
+          this.app.suggestionService.loadSuggestion(term);
         });
 
         pillsRow.appendChild(pill);
@@ -90,6 +91,7 @@ export class DisplayService {
 
       // Append the complete trends container panel straight to your DOM reference wrapper
       if (this.app.noResults) {
+        this.app.noResults.style.display = "block";
         this.app.noResults.appendChild(trendsContainer);
       }
     }
