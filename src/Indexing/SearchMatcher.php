@@ -2,6 +2,8 @@
 
 namespace EsSmartSearch\Indexing;
 
+use EsSmartSearch\Indexing\SearchNormalizer;
+
 class SearchMatcher {
 
     // Define the weights for each field group and the groups that allow fuzzy matching
@@ -103,7 +105,7 @@ class SearchMatcher {
             $values = is_array( $values ) ? $values : [ $values ];
         
             // Normalize the filter values with search index method.
-            $values = array_filter( array_map( [ 'EsSmartSearch\SearchNormalizer', 'normalise' ], $values ) );
+            $values = array_filter( array_map( [ SearchNormalizer::class, 'normalise' ], $values ) );
 
             // If the filter values are empty or the corresponding fields are not present, return false.
             if ( empty( $values ) || empty( $fields[ $group ] ) ) return false;

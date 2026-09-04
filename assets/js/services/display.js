@@ -215,8 +215,6 @@ export class DisplayService {
       );
     });
 
-    console.log("Sorted products collection layout mapping:", products);
-
     // Append the sorted product cards back to the product list in the new order
     products.forEach((product) => this.app.productList.appendChild(product));
 
