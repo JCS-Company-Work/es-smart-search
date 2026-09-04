@@ -178,39 +178,62 @@ export class DisplayService {
 
     // Sort the product cards based on their rank in the API results and their original order
     products.sort((left, right) => {
-      // Determine the rank of the left product card based on its batch IDs and the rankById map
-      const leftRank = Math.min(
-        ...this.app.helpers
-          .getProductIds(left)
-          .map((id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER),
+      // Extract the product IDs for the left and right product cards for ranking comparison
+      const leftIds = (this.app.helpers.getProductIds(left) || []).map(Number);
+      const rightIds = (this.app.helpers.getProductIds(right) || []).map(
+        Number,
       );
 
-      // Sort the products by their rank in the API results, with lower ranks appearing first. If two products have the same rank, maintain their original order in the DOM.
-      const rightRank = Math.min(
-        ...this.app.helpers
-          .getProductIds(right)
-          .map((id) => rankById.get(id) ?? Number.MAX_SAFE_INTEGER),
-      );
+      // Handle empty arrays cleanly by defaulting to MAX_SAFE_INTEGER instead of Infinity
+      const leftRank =
+        leftIds.length > 0
+          ? Math.min(
+              ...leftIds.map((id) =>
+                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
+              ),
+            )
+          : Number.MAX_SAFE_INTEGER;
 
-      // If the ranks are different, return the difference to sort by rank
+      const rightRank =
+        rightIds.length > 0
+          ? Math.min(
+              ...rightIds.map((id) =>
+                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
+              ),
+            )
+          : Number.MAX_SAFE_INTEGER;
+
+      // If the ranks are different, sort by your API ranking scores accurately
       if (leftRank !== rightRank) {
         return leftRank - rightRank;
       }
 
-      // If the ranks are the same, maintain the original order of the products in the DOM
+      // If neither product has a scored rank, maintain original template DOM ordering configurations
       return (
         this.app.originalProductOrder.indexOf(left) -
         this.app.originalProductOrder.indexOf(right)
       );
     });
 
+    console.log("Sorted products collection layout mapping:", products);
+
     // Append the sorted product cards back to the product list in the new order
     products.forEach((product) => this.app.productList.appendChild(product));
+
+    // Extract the matching parents again, preserving your new sorted products array order
+    const sortedMatchingParents = this.app.paginationService.getMatchingParents(
+      products,
+      matches,
+    );
+
+    // Force your pagination service to update its internal collection memory arrays
+    // using your clean, ranked layout sequence
+    this.app.paginationService.paginateMatchingProducts(sortedMatchingParents);
 
     // Render the current page of parent product cards based on the current state and pagination
     this.app.paginationService.renderCurrentPage();
 
-    // Get the count of visible products after applying the search results and update the visibleCount variable
+    // Get the count of visible products after applying the search results
     visibleCount = this.app.paginationService.getCurrentPageItems().length;
 
     // Update the pagination buttons to reflect the current page and total pages
@@ -224,9 +247,9 @@ export class DisplayService {
       this.app.paginationService.updatePaginationCount();
     }
 
-    // Update the no results element to show a message if there are no matching products, or hide it if there are matches
-    if (this.noResults) {
-      this.noResults.style.display = visibleCount ? "none" : "block";
+    // If there are no visible products, show the "no results" message
+    if (this.app.noResults) {
+      this.app.noResults.style.display = visibleCount ? "none" : "block";
     }
 
     // Return the count of visible products after applying the search results

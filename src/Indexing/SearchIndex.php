@@ -65,6 +65,9 @@ final class SearchIndex {
      */
     private function build_searchable_batches() {
 
+        // Fetch low-stock threshold variable setting
+        $stock_threshold = (int) get_option( 'woocommerce_notify_low_stock_amount', 2 );
+
         // Query all published batches with stock greater than zero and in stock status.
         $query = new WP_Query( [
             'post_type'      => 'batch',
@@ -74,7 +77,7 @@ final class SearchIndex {
             'meta_query'     => [
                 [
                     'key'     => '_stock',
-                    'value'   => 1,
+                    'value'   => $stock_threshold,
                     'compare' => '>',
                     'type'    => 'NUMERIC',
                 ],
