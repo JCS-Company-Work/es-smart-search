@@ -225,21 +225,68 @@ class Search {
         // Define the table name for the smart search events.
         $table_name = $wpdb->prefix . 'es_smart_search_events';
 
-        // Fetch the most popular search terms from the smart search events table.
-        $popular_terms = $wpdb->get_col( $wpdb->prepare(
+        // Check if the smart search events table exists before querying it.
+        if ( $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table_name ) ) !== $table_name ) {
+            return [];
+        }
+
+        // Fetch 5 times the limit from database logs. This ensures that if the top 3 
+        // items contain junk typos, we have enough valid buffer items beneath them to fill layout slots.
+        $raw_popular_terms = $wpdb->get_col( $wpdb->prepare(
             "SELECT query_normalised 
              FROM $table_name 
              WHERE has_results = 1 AND query_normalised != ''
              GROUP BY query_normalised 
              ORDER BY COUNT(query_normalised) DESC 
              LIMIT %d",
-            $limit
+            $limit * 5 
         ) );
 
-        return $popular_terms;
+        // If no popular terms were fetched from the database, return an empty array.
+        if ( empty( $raw_popular_terms ) ) {
+            return [];
+        }
+
+        // Fetch the dictionary to use as the vocabulary source of truth.
+        $vocabulary = $this->dictionary->get_terms();
+        
+        // If the vocabulary cache is totally empty, fall back to the raw list to avoid a broken UI
+        if ( empty( $vocabulary ) ) {
+            return array_slice( $raw_popular_terms, 0, $limit );
+        }
+
+        // Array to hold the verified popular terms after cross-referencing with the dictionary.
+        $verified_terms = [];
+
+        // Evaluate each logged keyword against the dictionary matrix
+        foreach ( $raw_popular_terms as $phrase ) {
+
+            // Split the phrase into individual words to check multi-word entries (e.g., "blue marble") safely
+            $words = array_filter( explode( ' ', $phrase ) );
+            $is_valid_phrase = true;
+
+            foreach ( $words as $word ) {
+                // If a single word in the logged phrase (like "agataxx") is completely missing 
+                // from our dictionary, we invalidate the entire phrase.
+                if ( ! in_array( $word, $vocabulary, true ) ) {
+                    $is_valid_phrase = false;
+                    break;
+                }
+            }
+
+            // If the phrase passed the dictionary check, add it to the verified terms array.
+            if ( $is_valid_phrase ) {
+                $verified_terms[] = $phrase;
+            }
+
+            // Break out the loop early the exact millisecond we satisfy your allocation limit
+            if ( count( $verified_terms ) >= $limit ) {
+                break;
+            }
+        }
+
+        return $verified_terms;
     
     }
-
-
 
 }
