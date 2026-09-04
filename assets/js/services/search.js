@@ -61,7 +61,10 @@ export class SearchService {
       if (visibleProductCount === 0 && data.suggestion) {
         this.app.suggestionService.showSuggestion(data.suggestion);
       } else if (visibleProductCount === 0) {
-        this.app.displayService.handleZeroResultsFallback(data.fallback);
+        this.app.displayService.handleZeroResultsFallback(
+          data.fallback.type,
+          data.fallback.terms,
+        );
       }
 
       // Update the URL state to reflect the current search query and filters

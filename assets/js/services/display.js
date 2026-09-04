@@ -51,31 +51,41 @@ export class DisplayService {
 
   /**
    * Dedicated coordinator to route zero-result screens based on active backend payloads.
-   * @param {string[]} popularFallback Flat array of successful trend queries from your logs.
+   * @param {string} type The type of zero-result fallback.
+   * @param {string[]} terms Flat array of successful trend queries from your logs.
    */
-  handleZeroResultsFallback(popularFallback = []) {
+  handleZeroResultsFallback(type, terms = []) {
     // Clear out any stale element items from your container first
     if (this.app.noResults) {
       this.app.noResults.innerHTML = "";
     }
-    console.log(
-      "Handling zero results fallback with popularFallback:",
-      popularFallback,
-    );
+    console.log("Handling zero results fallback with terms:", terms);
 
     // If there are popular fallback terms, display them as clickable trend pills.
-    if (Array.isArray(popularFallback) && popularFallback.length > 0) {
+    if (Array.isArray(terms) && terms.length > 0) {
       const trendsContainer = document.createElement("div");
       trendsContainer.classList.add("esss-popular-fallback-panel");
 
-      trendsContainer.innerHTML = `
-        <p class="esss-fallback-title">No exact matches found. Try exploring our most popular searches:</p>
-        <div class="esss-pills-row"></div>
-      `;
+      // Set message based on the type of zero-result fallback.
+      if (type === "popular") {
+        const message = document.createElement("p");
+        message.classList.add("esss-fallback-title");
+        message.textContent =
+          "No exact matches found. Try exploring our most popular searches:";
+        trendsContainer.appendChild(message);
+      } else if (type === "usage") {
+        const message = document.createElement("p");
+        message.classList.add("esss-fallback-title");
+        message.textContent =
+          "No exact matches found. Try exploring our products by usage:";
+        trendsContainer.appendChild(message);
+      }
 
-      const pillsRow = trendsContainer.querySelector(".esss-pills-row");
+      const pillsRow = document.createElement("div");
+      pillsRow.classList.add("esss-pills-row");
+      trendsContainer.appendChild(pillsRow);
 
-      popularFallback.forEach((term) => {
+      terms.forEach((term) => {
         const pill = document.createElement("a");
         pill.classList.add("esss-trend-pill");
         pill.href = `${window.location.origin}/collections/search-results/#textsearch=${encodeURIComponent(term)}`;

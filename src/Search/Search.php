@@ -200,10 +200,16 @@ class Search {
 
         if ( $use_popular ) {
             // Get top popular searches text queries from custom table
-            return $this->get_popular_reporting_terms( 4 );
+            return [
+                'type' => 'popular', 
+                'terms' => $this->get_popular_reporting_terms( 4 ) 
+            ];
         } else {
             // Populate standard usage landing links
-            return $this->fallback_usage_terms();
+            return [
+                'type' => 'usage',
+                'terms' => $this->fallback_usage_terms()
+            ];
         }
     }
 
@@ -290,11 +296,6 @@ class Search {
      * @return array An array of associative arrays containing 'label' and 'url' keys.
      */
     public function fallback_usage_terms() {
-        return [
-            [ 'label' => 'Floor Tiles',    'url' => '/collections/floor-tiles/' ],
-            [ 'label' => 'Wall Tiles',     'url' => '/collections/wall-tiles/' ],
-            [ 'label' => 'Bathroom Tiles', 'url' => '/collections/bathroom-tiles/' ],
-            [ 'label' => 'Kitchen Tiles',  'url' => '/collections/kitchen-tiles/' ],
-        ];
+        return [ 'floor', 'wall', 'wall & floor', 'outdoor' ];
     }
 }
