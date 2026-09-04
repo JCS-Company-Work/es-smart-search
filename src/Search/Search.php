@@ -93,6 +93,12 @@ class Search {
         // Ensure filters are in array format.
         $filters = is_array( $filters ) ? $filters : [];
 
+        // Apply synonyms to the search query and retrieve any active synonym matches.
+        $synonym_payload = $this->apply_synonyms( $query );
+        
+        $query                  = $synonym_payload['query'];
+        $active_synonym_matches = $synonym_payload['matches'];
+
         // Fetch your admin blacklist terms to clean the query on-the-fly
         $raw_blacklist = get_option( 'esss_ignored_terms', '' );
         $blacklist = array_map( 'trim', explode( ',', strtolower( $raw_blacklist ) ) );
@@ -190,14 +196,21 @@ class Search {
         // Initialize the suggestion variable as null
         $suggestion = null;
 
-        // If no matches were found and the search string wasn't empty, check the vocabulary dictionary
-        if ( empty( $matches ) && '' !== $query ) {
+        // --- NEW STEP: Check if a synonym matched at the top of the request ---
+        if ( ! empty( $active_synonym_matches ) ) {
+            
+            // Instantly pass the synonym array words to the suggestion tracking parameter
+            $suggestion = $active_synonym_matches;
+            
+        } else if ( empty( $matches ) && '' !== $query ) {
+            
+            // If no matches were found and the search string wasn't empty, check the vocabulary dictionary
             $vocabulary = $this->dictionary->get_terms();
 
             if ( ! empty( $vocabulary ) ) {
 
                 // Fetch suggestion limit value from the settings
-                $suggestions_limit = get_option( 'esss_suggestions_limit', 1 ); 
+                $suggestions_limit = intval( get_option( 'esss_suggestions_limit', 1 ) ); 
 
                 // Fetch the suggestion via your SearchMatcher using your preferred limit setting (e.g. 1)
                 $suggestion = $this->service->get_suggestions( $query, $vocabulary, $suggestions_limit );
@@ -331,4 +344,48 @@ class Search {
     public function fallback_usage_terms() {
         return [ 'floor', 'wall', 'wall & floor', 'outdoor' ];
     }
+
+    /**
+     * Parse the admin synonym mapping configurations and apply them to the query.
+     *
+     * @param string $query The original raw query string.
+     * @return array Contains 'query' (string) and 'matches' (array)
+     */
+    private function apply_synonyms( string $query ): array {
+        // Create our default, safe return payload structure
+        $payload = [
+            'query'   => $query,
+            'matches' => []
+        ];
+
+        $raw_synonyms = get_option( 'esss_synonyms', '' );
+        if ( empty( $raw_synonyms ) || '' === $query ) {
+            return $payload;
+        }
+
+        $synonym_map = [];
+        $lines = array_filter( explode( "\n", str_replace( "\r", "", strtolower( $raw_synonyms ) ) ) );
+        
+        foreach ( $lines as $line ) {
+            if ( strpos( $line, '=>' ) !== false ) {
+                list( $trigger, $replacements ) = explode( '=>', $line, 2 );
+                $trigger = trim( $trigger );
+                $matches = array_filter( array_map( 'trim', explode( ',', $replacements ) ) );
+                
+                if ( ! empty( $trigger ) && ! empty( $matches ) ) {
+                    $synonym_map[$trigger] = $matches;
+                }
+            }
+        }
+
+        $normalised_query = strtolower( $query );
+        if ( array_key_exists( $normalised_query, $synonym_map ) ) {
+            $payload['matches'] = $synonym_map[$normalised_query];
+            $payload['query']   = implode( ' ', $payload['matches'] );
+        }
+
+        return $payload;
+    }
+
+
 }

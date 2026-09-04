@@ -31,45 +31,159 @@ class Service {
      * @param integer $limit
      * @return array|null
      */
+    // public function get_suggestions( string $query, array $cached_dictionary, int $limit = 1 ) {
+
+    //     // Normalise user query
+    //     $query = SearchNormalizer::normalise( $query );
+    
+    //     // Split the query into individual words
+    //     $words = array_filter( preg_split( '/\s+/', $query ) );
+        
+    //     // Array to hold possible corrections for each term in the query
+    //     $slots = [];
+
+    //     // Prepare slots for each word's possible corrections
+    //     $has_corrections = false;
+
+    //     // Loop through each word in the query to find possible corrections
+    //     foreach ( $words as $word ) {
+        
+    //         // Check if the word is already in the cached dictionary
+    //         if ( in_array( $word, $cached_dictionary, true ) ) {
+    //             $slots[] = [ $word ];
+    //             continue;
+    //         }
+
+    //         // Array to hold candidate corrections for the current word
+    //         $candidates = [];
+            
+    //         // Determine the maximum allowed Levenshtein distance based on word length
+    //         $max_allowed_distance = $this->max_allowed_distance( $word );
+
+    //         // Loop through each valid term in the cached dictionary to find close matches
+    //         foreach ( $cached_dictionary as $valid_term ) {
+
+    //             // Skip very short valid terms to avoid irrelevant corrections
+    //             if ( strlen( $valid_term ) < 3 ) continue;
+
+    //             // Calculate the Levenshtein distance between the current word and the valid term
+    //             $distance = levenshtein( $word, $valid_term );
+                
+    //             // If the distance is within the allowed threshold, consider it a candidate
+    //             if ( $distance <= $max_allowed_distance ) {
+    //                 $candidates[] = [
+    //                     'word'     => $valid_term,
+    //                     'distance' => $distance
+    //                 ];
+    //             }
+    //         }
+
+    //         // Sort the candidate corrections by their Levenshtein distance (closest matches first)
+    //         usort( $candidates, function( $a, $b ) {
+    //             return $a['distance'] <=> $b['distance'];
+    //         });
+
+    //         // Extract the words from the sorted candidate corrections for the current slot
+    //         $slot_words = array_column( $candidates, 'word' );
+
+    //         // If there are candidate corrections, add them to the slots; otherwise, keep the original word
+    //         if ( ! empty( $slot_words ) ) {
+    //             $slots[] = $slot_words;
+    //             $has_corrections = true;
+    //         } else {
+    //             $slots[] = [ $word ];
+    //         }
+    //     }
+
+    //     // If no corrections were found, return null early
+    //     if ( ! $has_corrections ) {
+    //         return null;
+    //     }
+
+    //     // Generate only the number of phrase combinations the caller can receive.
+    //     $phrases = $this->generate_phrase_combinations( $slots, $limit, 0 );
+        
+    //     // Filter out the original query from the generated phrases
+    //     $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {
+    //         return $phrase !== $query;
+    //     });
+
+    //     // Limit the number of final suggestions to the specified limit
+    //     $final_suggestions = array_slice( array_values( $phrases ), 0, $limit );
+
+    //     // If there are no final suggestions after limiting, return null
+    //     if ( empty( $final_suggestions ) ) {
+    //         return null;
+    //     }
+
+    //     return 1 === count($final_suggestions) ? [$final_suggestions[0]] : $final_suggestions;
+    // }
+
+        /**
+     * Get search suggestions based on the query and cached dictionary.
+     * Incorporates dynamic administrative synonym tracking blocks.
+     *
+     * @param string $query
+     * @param array $cached_dictionary
+     * @param integer $limit
+     * @return array|null
+     */
     public function get_suggestions( string $query, array $cached_dictionary, int $limit = 1 ) {
 
-        // Normalise user query
+        // 1. Normalise query text down to clean lowercase bounds
         $query = SearchNormalizer::normalise( $query );
-    
-        // Split the query into individual words
-        $words = array_filter( preg_split( '/\s+/', $query ) );
-        
-        // Array to hold possible corrections for each term in the query
-        $slots = [];
 
-        // Prepare slots for each word's possible corrections
+        // --- PHASE A: DYNAMIC ADMIN SYNONYM INTERCEPTION ---
+        // Fetch your custom raw multiline textarea option string mapping rules
+        $raw_synonyms = get_option( 'esss_synonyms', '' );
+        
+        if ( ! empty( $raw_synonyms ) ) {
+            $synonym_map = [];
+            // Clean out carriage returns and split into separate lines
+            $lines = array_filter( explode( "\n", str_replace( "\r", "", strtolower( $raw_synonyms ) ) ) );
+            
+            foreach ( $lines as $line ) {
+                if ( strpos( $line, '=>' ) !== false ) {
+                    list( $trigger, $replacements ) = explode( '=>', $line, 2 );
+                    $trigger = trim( $trigger );
+                    
+                    // Split comma-separated matches into clean array tokens
+                    $matches = array_filter( array_map( 'trim', explode( ',', $replacements ) ) );
+                    
+                    if ( ! empty( $trigger ) && ! empty( $matches ) ) {
+                        $synonym_map[$trigger] = $matches;
+                    }
+                }
+            }
+
+            // Check if the entire multi-word phrase (e.g. "off white") hits a synonym mapping
+            if ( array_key_exists( $query, $synonym_map ) ) {
+                $synonym_suggestions = array_slice( $synonym_map[$query], 0, $limit );
+                return empty( $synonym_suggestions ) ? null : $synonym_suggestions;
+            }
+        }
+        
+        // --- PHASE B: TYPO RESISTANCE SEARCH LOGIC RESUMES ---
+        // Split the query into individual words for standard Levenshtein calculations
+        $words = array_filter( preg_split( '/\s+/', $query ) );
+        $slots = [];
         $has_corrections = false;
 
-        // Loop through each word in the query to find possible corrections
         foreach ( $words as $word ) {
-        
-            // Check if the word is already in the cached dictionary
             if ( in_array( $word, $cached_dictionary, true ) ) {
                 $slots[] = [ $word ];
                 continue;
             }
 
-            // Array to hold candidate corrections for the current word
             $candidates = [];
-            
-            // Determine the maximum allowed Levenshtein distance based on word length
             $max_allowed_distance = $this->max_allowed_distance( $word );
 
-            // Loop through each valid term in the cached dictionary to find close matches
             foreach ( $cached_dictionary as $valid_term ) {
+                if ( strlen( $valid_term ) < 3 ) {
+                    continue;
+                }
 
-                // Skip very short valid terms to avoid irrelevant corrections
-                if ( strlen( $valid_term ) < 3 ) continue;
-
-                // Calculate the Levenshtein distance between the current word and the valid term
                 $distance = levenshtein( $word, $valid_term );
-                
-                // If the distance is within the allowed threshold, consider it a candidate
                 if ( $distance <= $max_allowed_distance ) {
                     $candidates[] = [
                         'word'     => $valid_term,
@@ -78,15 +192,12 @@ class Service {
                 }
             }
 
-            // Sort the candidate corrections by their Levenshtein distance (closest matches first)
             usort( $candidates, function( $a, $b ) {
                 return $a['distance'] <=> $b['distance'];
             });
 
-            // Extract the words from the sorted candidate corrections for the current slot
             $slot_words = array_column( $candidates, 'word' );
 
-            // If there are candidate corrections, add them to the slots; otherwise, keep the original word
             if ( ! empty( $slot_words ) ) {
                 $slots[] = $slot_words;
                 $has_corrections = true;
@@ -95,29 +206,26 @@ class Service {
             }
         }
 
-        // If no corrections were found, return null early
         if ( ! $has_corrections ) {
             return null;
         }
 
-        // Generate only the number of phrase combinations the caller can receive.
-        $phrases = $this->generate_phrase_combinations( $slots, $limit, 0 );
+        // Generate phrase variations without relying on recursive index parameters
+        $phrases = $this->generate_phrase_combinations( $slots, $limit );
         
-        // Filter out the original query from the generated phrases
         $phrases = array_filter( $phrases, function( $phrase ) use ( $query ) {
             return $phrase !== $query;
         });
 
-        // Limit the number of final suggestions to the specified limit
         $final_suggestions = array_slice( array_values( $phrases ), 0, $limit );
 
-        // If there are no final suggestions after limiting, return null
         if ( empty( $final_suggestions ) ) {
             return null;
         }
 
-        return 1 === count($final_suggestions) ? [$final_suggestions[0]] : $final_suggestions;
+        return $final_suggestions;
     }
+
 
     /**
      * Generate all possible phrase combinations from the correction slots.
@@ -127,9 +235,11 @@ class Service {
      *
      * @param array $slots An array of arrays, where each inner array contains candidate corrections for a word.
      * @param integer $index The current index in the slots array to process.
+     * @param integer $limit The maximum number of phrase combinations to generate.
      * @return array An array of generated phrase combinations.
      *
      * @param array $slots
+     * @param integer $limit The maximum number of phrase combinations to generate.
      * @param integer $index
      * @return array
      */

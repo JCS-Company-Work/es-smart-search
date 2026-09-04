@@ -194,7 +194,6 @@ class SearchMatcher {
      */
     private function calculate_exact_score( string $word, array $fields, array &$matched_fields ): int {
         $word_score = 0;
-
         foreach ( $this->weights as $group => $weight ) {
             // If this field group doesn't exist in the batch data, skip it
             if ( empty( $fields[ $group ] ) ) {
