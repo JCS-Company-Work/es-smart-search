@@ -78,7 +78,6 @@ export class UrlService {
    * @returns {void}
    */
   writeUrlState() {
-    console.log(this.app.state);
     // Build an array of key-value pairs for the URL hash
     const parts = [];
 

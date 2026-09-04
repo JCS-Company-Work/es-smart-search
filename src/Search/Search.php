@@ -169,6 +169,12 @@ class Search {
                 // Fetch the suggestion via your SearchMatcher using your preferred limit setting (e.g. 1)
                 $suggestion = $this->service->get_suggestions( $query, $vocabulary, $suggestions_limit );
             }
+
+            // If spelling service fails to offer a typo correction, evaluate our fallback settings
+            if ( empty( $suggestion ) ) {
+                $fallback_data = $this->prepare_fallback_data();
+            }
+
         }
 
         // Return the search results as a REST response.
@@ -178,7 +184,62 @@ class Search {
             'count'   => count( $matches ),
             'ranking' => $matches,
             'suggestion' => $suggestion,
+            'fallback'   => $fallback_data ?? null,
         ] );
     }
+
+    /**
+     * Prepare no result fallback data based on admin setting
+     *
+     * @return array
+     */
+    private function prepare_fallback_data() {
+
+        // Determine whether to use popular searches or static links based on the admin setting.
+        $use_popular = (bool) get_option( 'esss_use_popular_searches', 1 );
+
+        if ( $use_popular ) {
+            // Get top popular searches text queries from custom table
+            return $this->get_popular_reporting_terms( 4 );
+        } else {
+            // Populate standard usage landing links
+            return [
+                [ 'label' => 'Floor Tiles',    'url' => '/collections/floor-tiles/' ],
+                [ 'label' => 'Wall Tiles',     'url' => '/collections/wall-tiles/' ],
+                [ 'label' => 'Bathroom Tiles', 'url' => '/collections/bathroom-tiles/' ],
+                [ 'label' => 'Kitchen Tiles',  'url' => '/collections/kitchen-tiles/' ],
+            ];
+        }
+    }
+
+    /**
+     * Get the most popular search terms from the smart search events table.
+     *
+     * @param integer $limit
+     * @return array $popular_terms
+     */
+    private function get_popular_reporting_terms( $limit = 4 ) {
+
+        global $wpdb;
+        
+        // Define the table name for the smart search events.
+        $table_name = $wpdb->prefix . 'es_smart_search_events';
+
+        // Fetch the most popular search terms from the smart search events table.
+        $popular_terms = $wpdb->get_col( $wpdb->prepare(
+            "SELECT query_normalised 
+             FROM $table_name 
+             WHERE has_results = 1 AND query_normalised != ''
+             GROUP BY query_normalised 
+             ORDER BY COUNT(query_normalised) DESC 
+             LIMIT %d",
+            $limit
+        ) );
+
+        return $popular_terms;
+    
+    }
+
+
 
 }

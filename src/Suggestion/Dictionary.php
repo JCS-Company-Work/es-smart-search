@@ -122,37 +122,59 @@ class Dictionary {
             return false;
         }
 
-        // Prepare the SQL IN clause securely for our custom field keys
-        $format = implode( ',', array_fill( 0, count( $this->target_acf_fields ), '%s' ) );
-        
-        // Direct SQL selection to quickly pluck values without loading heavy post objects
-        $query = $wpdb->prepare(
-            "SELECT DISTINCT meta_value 
-             FROM {$wpdb->postmeta} 
-             WHERE meta_key IN ($format) AND meta_value != ''",
-            $this->target_acf_fields
-        );
+        // Fetch low-stock threshold variable setting
+        $stock_threshold = (int) get_option( 'woocommerce_notify_low_stock_amount', 2 );
 
-        $meta_values = $wpdb->get_col( $query );
+        // This query is simple to read: get published batch IDs where stock is greater than our limit
+        $valid_batch_ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT p.ID 
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} stock ON p.ID = stock.post_id
+             WHERE p.post_type = 'batch' 
+               AND p.post_status = 'publish' 
+               AND stock.meta_key = '_stock' 
+               AND CAST(stock.meta_value AS SIGNED) > %d",
+            $stock_threshold
+        ) );
 
-        if ( empty( $meta_values ) ) {
-            return false;
-        }
+        // If no batches are in stock above the threshold, jump straight to taxonomies safely
+        if ( ! empty( $valid_batch_ids ) ) {
+            
+            // Prepare placeholders for the IN clauses securely
+            $batch_ids_format = implode( ',', array_fill( 0, count( $valid_batch_ids ), '%d' ) );
+            $acf_fields_format = implode( ',', array_fill( 0, count( $this->target_acf_fields ), '%s' ) );
 
-        // Extract, normalise, and split raw field text into isolated words
-        foreach ( $meta_values as $value ) {
-            // Unserialize data if any ACF fields are stored as arrays (like multi-select check-boxes)
-            if ( is_serialized( $value ) ) {
-                $unserialized = maybe_unserialize( $value );
-                if ( is_array( $unserialized ) ) {
-                    foreach ( $unserialized as $sub_val ) {
-                        $this->extract_clean_words( $sub_val, $unique_words );
+            // No self-joining on postmeta needed anymore! This query is clean and easy to read.
+            $query = $wpdb->prepare(
+                "SELECT DISTINCT p.post_title, m.meta_value 
+                 FROM {$wpdb->posts} p
+                 INNER JOIN {$wpdb->postmeta} m ON p.ID = m.post_id
+                 WHERE p.ID IN ($batch_ids_format)
+                   AND m.meta_key IN ($acf_fields_format) 
+                   AND m.meta_value != ''",
+                array_merge( $valid_batch_ids, $this->target_acf_fields )
+            );
+
+            $batch_records = $wpdb->get_results( $query, ARRAY_A );
+
+            // Process the records through your extractor loops exactly as before
+            if ( ! empty( $batch_records ) ) {
+                foreach ( $batch_records as $record ) {
+                    $this->extract_clean_words( $record['post_title'], $unique_words );
+
+                    $value = $record['meta_value'];
+                    if ( is_serialized( $value ) ) {
+                        $unserialized = maybe_unserialize( $value );
+                        if ( is_array( $unserialized ) ) {
+                            foreach ( $unserialized as $sub_val ) {
+                                $this->extract_clean_words( $sub_val, $unique_words );
+                            }
+                            continue;
+                        }
                     }
-                    continue;
+                    $this->extract_clean_words( $value, $unique_words );
                 }
             }
-
-            $this->extract_clean_words( $value, $unique_words );
         }
 
         // Include terms from the 'effects' taxonomy in the dictionary.
@@ -198,16 +220,28 @@ class Dictionary {
     }
 
     /**
-     * Helper to split text strings down into valid index words using the pre-parsed memory blacklist array.
+     * Helper to split text strings down into valid index words.
+     * Accurately strips out structural dimensions phrases to prevent junk keywords index entries.
      */
     private function extract_clean_words( string $text, array &$unique_words ): void {
-        $normalised = SearchNormalizer::normalise( $text );
+        // Explicitly match a strict dimensions pattern chain with arbitrary whitespace (e.g., "600 x 1200 x 8")
+        // The [xX] logic safely catches both lower and uppercase dimension cross letters
+        $dimension_phrase_pattern = '/\b\d+(?:\s*[xX]\s*\d+)+\b/u';
+        $cleaned_text = preg_replace( $dimension_phrase_pattern, '', $text );
+
+        // Clean up any trailing standalone measurement units or single remaining digits (like "8 mm" or "mm")
+        // left over by the phrase split so they do not pollute the dictionary
+        $leftover_units_pattern = '/\b(?:\d+\s*mm|mm)\b/ui';
+        $cleaned_text = preg_replace( $leftover_units_pattern, '', $cleaned_text );
+
+        // Normalise the text down using your standard index normaliser rules
+        $normalised = SearchNormalizer::normalise( $cleaned_text );
         $words = array_filter( preg_split( '/\s+/', $normalised ) );
 
         foreach ( $words as $word ) {
             $clean_word = preg_replace( '/[^\w\s]/u', '', $word );
 
-            // Removed the blacklist array check from here to allow global post-processing override
+            // This 3-character threshold safely drops single leftover letters like "x" or "mm" automatically
             if ( strlen( $clean_word ) < 3 ) {
                 continue;
             }
@@ -215,5 +249,4 @@ class Dictionary {
             $unique_words[] = $clean_word;
         }
     }
-
 }

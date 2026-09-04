@@ -50,7 +50,7 @@ export class SearchService {
 
       // Parse the JSON response from the server
       const data = await response.json();
-
+      console.log(data);
       // Render the search results and get the count of visible products
       const visibleProductCount = this.app.displayService.renderResults(
         data.matches,
@@ -60,6 +60,8 @@ export class SearchService {
       // If visibleProductCount is zero, show suggestion links if there are any
       if (visibleProductCount === 0 && data.suggestion) {
         this.app.suggestionService.showSuggestion(data.suggestion);
+      } else if (visibleProductCount === 0) {
+        this.app.displayService.handleZeroResultsFallback(data.fallback);
       }
 
       // Update the URL state to reflect the current search query and filters

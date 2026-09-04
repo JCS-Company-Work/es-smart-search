@@ -50,6 +50,52 @@ export class DisplayService {
   }
 
   /**
+   * Dedicated coordinator to route zero-result screens based on active backend payloads.
+   * @param {string[]} popularFallback Flat array of successful trend queries from your logs.
+   */
+  handleZeroResultsFallback(popularFallback = []) {
+    // Clear out any stale element items from your container first
+    if (this.app.noResults) {
+      this.app.noResults.innerHTML = "";
+    }
+    console.log(
+      "Handling zero results fallback with popularFallback:",
+      popularFallback,
+    );
+    // PATH 2: TRUE DEAD END (0 Results & 0 Suggestions) -> LOAD RECOVERY PILLS
+    if (Array.isArray(popularFallback) && popularFallback.length > 0) {
+      const trendsContainer = document.createElement("div");
+      trendsContainer.classList.add("esss-popular-fallback-panel");
+
+      trendsContainer.innerHTML = `
+        <p class="esss-fallback-title">No exact matches found. Try exploring our most popular searches:</p>
+        <div class="esss-pills-row"></div>
+      `;
+
+      const pillsRow = trendsContainer.querySelector(".esss-pills-row");
+
+      popularFallback.forEach((term) => {
+        const pill = document.createElement("a");
+        pill.classList.add("esss-trend-pill");
+        pill.href = "#";
+        pill.textContent = term;
+
+        pill.addEventListener("click", (event) => {
+          event.preventDefault();
+          this.loadSuggestion(term);
+        });
+
+        pillsRow.appendChild(pill);
+      });
+
+      // Append the complete trends container panel straight to your DOM reference wrapper
+      if (this.app.noResults) {
+        this.app.noResults.appendChild(trendsContainer);
+      }
+    }
+  }
+
+  /**
    * Update the reset button's active state based on whether there is an active query or any active filters.
    * This provides visual feedback to the user that they can reset the search state.
    */

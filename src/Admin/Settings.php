@@ -24,6 +24,7 @@ class Settings {
     }
 
     public function register_settings(): void {
+
         // Register options explicitly with standard text strings validation attributes
         register_setting( 'es_smart_search_group', 'esss_max_distance_short', [ 'type' => 'integer', 'default' => 1 ] );
         register_setting( 'es_smart_search_group', 'esss_max_distance_long', [ 'type' => 'integer', 'default' => 2 ] );
@@ -32,6 +33,9 @@ class Settings {
 
         // Register the suggestions limit setting
         register_setting( 'es_smart_search_group', 'esss_suggestions_limit', [ 'type' => 'integer', 'default' => 1 ] );
+
+        // Register the use popular searches setting
+        register_setting( 'es_smart_search_group', 'esss_use_popular_searches', [ 'type' => 'boolean', 'default' => true ] );
 
     }
 
@@ -79,6 +83,18 @@ class Settings {
                                 <td>
                                     <input type="number" name="esss_suggestions_limit" id="esss_suggestions_limit" value="<?php echo esc_attr( get_option( 'esss_suggestions_limit', 1 ) ); ?>" min="1" max="5" class="small-text">
                                     <p class="description">Controls how many phrase combinations to generate when a search fails.</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Fallback When No Results</th>
+                                <td>
+                                    <fieldset>
+                                        <label for="esss_use_popular_searches">
+                                            <input type="checkbox" name="esss_use_popular_searches" id="esss_use_popular_searches" value="1" <?php checked( 1, get_option( 'esss_use_popular_searches', 1 ) ); ?>>
+                                            Use dynamic popular searches when no results or spelling suggestions are found
+                                        </label>
+                                        <p class="description">If unticked, the system will display standard usage links (Floor, Wall, Bathroom and Kitchen tiles) instead.</p>
+                                    </fieldset>
                                 </td>
                             </tr>
                             <tr>
