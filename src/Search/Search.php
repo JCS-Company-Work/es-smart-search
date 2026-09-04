@@ -203,12 +203,7 @@ class Search {
             return $this->get_popular_reporting_terms( 4 );
         } else {
             // Populate standard usage landing links
-            return [
-                [ 'label' => 'Floor Tiles',    'url' => '/collections/floor-tiles/' ],
-                [ 'label' => 'Wall Tiles',     'url' => '/collections/wall-tiles/' ],
-                [ 'label' => 'Bathroom Tiles', 'url' => '/collections/bathroom-tiles/' ],
-                [ 'label' => 'Kitchen Tiles',  'url' => '/collections/kitchen-tiles/' ],
-            ];
+            return $this->fallback_usage_terms();
         }
     }
 
@@ -250,9 +245,9 @@ class Search {
         // Fetch the dictionary to use as the vocabulary source of truth.
         $vocabulary = $this->dictionary->get_terms();
         
-        // If the vocabulary cache is totally empty, fall back to the raw list to avoid a broken UI
+        // If the vocabulary cache is totally empty, fall back to usage terms to avoid a broken UI
         if ( empty( $vocabulary ) ) {
-            return array_slice( $raw_popular_terms, 0, $limit );
+            return $this->fallback_usage_terms();
         }
 
         // Array to hold the verified popular terms after cross-referencing with the dictionary.
@@ -289,4 +284,17 @@ class Search {
     
     }
 
+    /**
+     * Provides a fallback list of popular usage terms for the search functionality.
+     *
+     * @return array An array of associative arrays containing 'label' and 'url' keys.
+     */
+    public function fallback_usage_terms() {
+        return [
+            [ 'label' => 'Floor Tiles',    'url' => '/collections/floor-tiles/' ],
+            [ 'label' => 'Wall Tiles',     'url' => '/collections/wall-tiles/' ],
+            [ 'label' => 'Bathroom Tiles', 'url' => '/collections/bathroom-tiles/' ],
+            [ 'label' => 'Kitchen Tiles',  'url' => '/collections/kitchen-tiles/' ],
+        ];
+    }
 }
