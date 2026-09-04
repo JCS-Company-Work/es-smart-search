@@ -92,20 +92,25 @@ class Search {
         
         // Ensure filters are in array format.
         $filters = is_array( $filters ) ? $filters : [];
+
+        // Fetch your admin blacklist terms to clean the query on-the-fly
+        $raw_blacklist = get_option( 'esss_ignored_terms', '' );
+        $blacklist = array_map( 'trim', explode( ',', strtolower( $raw_blacklist ) ) );
+        $blacklist = array_filter( $blacklist ); // Strip out empty entries safely
+
+        // Extract and isolate tracking keywords, immediately dropping any blacklisted filler terms
+        $raw_query_words = array_filter( explode( ' ', strtolower( $query ) ) );
+        $query_words = array_filter( $raw_query_words, function( $word ) use ( $blacklist ) {
+            return ! in_array( $word, $blacklist, true );
+        });
         
         // Determine the index source based on the query and filters.
         $index_source = 'empty';
 
-        // If the query is empty and there are no filters, return an empty result set.
-        if ( '' === $query && empty( $filters ) ) {
-        
-            // retrun empty headers and response
-            header( 'X-ESSS-Index-Source: empty' );
-            return rest_ensure_response( [
-                'query'   => '',
-                'matches' => [],
-                'count'   => 0,
-            ] );
+        // If the user typed ONLY blacklisted words (e.g., "porcelain tiles"),
+        // we empty the query completely so the system falls back to showing all items!
+        if ( ! empty( $raw_query_words ) && empty( $query_words ) ) {
+            $query = ''; 
         }
 
         // Get the searchable batches based on the determined index source.
@@ -125,6 +130,34 @@ class Search {
 
             // Skip batches that do not match the filters.
             if ( ! $this->search_matcher->matches_filters( $batch['fields'], $filters ) ) continue;
+
+            // Enforce strict multi-word e-commerce 'AND' lock guard and ensure deep search with array_walk_recursive
+            if ( ! empty( $query_words ) ) {
+                // Collect all values recursively to handle nested ACF array fields safely
+                $field_strings = [];
+                array_walk_recursive( $batch['fields'], function( $value ) use ( &$field_strings ) {
+                    if ( is_string( $value ) || is_numeric( $value ) ) {
+                        $field_strings[] = $value;
+                    }
+                } );
+
+                // Combine the post title and flattened text properties into a single searchable text block
+                $searchable_string = strtolower( $batch['post_title'] . ' ' . implode( ' ', $field_strings ) );
+                $matches_all_words = true;
+
+                foreach ( $query_words as $word ) {
+                    // If a single word (like "white") is missing from this product, exclude it immediately
+                    if ( false === strpos( $searchable_string, $word ) ) {
+                        $matches_all_words = false;
+                        break;
+                    }
+                }
+
+                // Drop the item safely if it fails the cross-field AND check
+                if ( ! $matches_all_words ) {
+                    continue;
+                }
+            }
 
             // Get the matched fields for the current batch based on the active filters.
             $matched_fields = $this->search_matcher->get_filter_match_weights( $filters );
