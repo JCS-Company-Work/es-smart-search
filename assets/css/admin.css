@@ -2,28 +2,28 @@
  * Smart Search Suggestion Settings Stylesheet
  */
 
-/* Main Forms Canvas */
-/* .esss-tab-pane {
+/* Standard, uniform canvas for all settings panes */
+.esss-tab-pane {
   max-width: 800px;
-} */
-
-/* Flex layout exclusively for the dictionary tab */
-.esss-tab-pane-flex {
-  display: flex;
-  gap: 40px;
-  align-items: flex-start;
-  max-width: 100%;
+  width: 100%;
 }
 
-/* Left Column: Form Fields Canvas (Stretches fluidly) */
+/* Tab-Specific override for the Dictionary tab layout */
+.esss-tab-pane#esss-tab-dictionary {
+  display: none;
+  max-width: 100%;
+  gap: 40px;
+  align-items: flex-start;
+}
+
 .esss-form-column {
   flex: 1;
   max-width: 800px;
 }
 
-/* Right Column: Active Vocabulary Sidebar Wrapper (Fixed widescreen footprint) */
+/* Right Column Canvas: Fixed widescreen footprint vocabulary viewer */
 .esss-sidebar-column {
-  flex: 0 0 380px; /* Do not shrink or grow, lock it to a comfortable 380px width */
+  flex: 0 0 500px;
   background: #ffffff;
   border: 1px solid #ccd0d4;
   padding: 20px;
@@ -38,7 +38,6 @@
   border-bottom: 1px solid #eee;
 }
 
-/* Search input for filter metrics */
 .esss-vocab-search-input {
   width: 100%;
   margin: 0 0 15px 0;
@@ -46,7 +45,6 @@
   box-sizing: border-box;
 }
 
-/* Vocabulary Scrollable Window Container */
 .esss-vocab-list-window {
   max-height: 400px;
   overflow-y: auto;
@@ -59,7 +57,6 @@
   border-radius: 3px;
 }
 
-/* Individual Active Term Pills */
 .esss-vocab-pill {
   display: inline-block;
   padding: 4px 10px;
@@ -71,7 +68,6 @@
   color: #2c3338;
 }
 
-/* Submission action block container matrix */
 .esss-submit-actions {
   margin-top: 20px;
   padding-top: 15px;

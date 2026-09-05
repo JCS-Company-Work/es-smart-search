@@ -73,7 +73,6 @@ class Settings {
 
                 <!-- Tab Content 2: Side-by-Side Flex Layout using external classes -->
                 <div id="esss-tab-dictionary" class="esss-tab-pane" style="display: none;">
-                    <div class="esss-tab-pane-flex">
                         <div class="esss-form-column">
                             <table class="form-table">
                                 <?php $this->render_dictionary_tab(); ?>
@@ -82,7 +81,6 @@ class Settings {
                         <div class="esss-sidebar-column">
                             <?php $this->render_dictionary_sidebar(); ?>
                         </div>
-                    </div>
                 </div>
 
                 <!-- Tab Content 3 -->
