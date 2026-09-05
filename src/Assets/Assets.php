@@ -11,7 +11,13 @@ class Assets {
      */
     public function register() {
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
         add_filter( 'script_loader_tag', [ $this, 'script_loader_tag' ], 10, 2 );
+    }
+
+    public function enqueue_admin_assets() {
+        //wp_enqueue_script('es-smart-search-admin', ESSS_URL . 'assets/js/admin.js', [], ESSS_VERSION, true);
+        wp_enqueue_style('es-smart-search-admin', ESSS_URL . 'assets/css/admin.css', [], ESSS_VERSION);
     }
 
     /**

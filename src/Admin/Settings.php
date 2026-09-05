@@ -62,38 +62,38 @@ class Settings {
             </nav>
             
             <form method="post" action="options.php">
-                <div style="display: flex; gap: 40px; margin-top: 20px;">
-                    
-                    <div style="flex: 2; max-width: 800px;">
-                        <?php
-                        // Nonce field for security
-                        settings_fields( 'es_smart_search_global_group' );
-                        ?>
+                <?php settings_fields( 'es_smart_search_global_group' ); ?>
 
-                        <div id="esss-tab-general" class="esss-tab-pane">
-                            <table class="form-table">
-                                <?php $this->render_general_tab(); ?>
-                            </table>
-                        </div>
+                <!-- Tab Content 1 -->
+                <div id="esss-tab-general" class="esss-tab-pane">
+                    <table class="form-table">
+                        <?php $this->render_general_tab(); ?>
+                    </table>
+                </div>
 
-                        <div id="esss-tab-dictionary" class="esss-tab-pane" style="display: none;">
+                <!-- Tab Content 2: Side-by-Side Flex Layout using external classes -->
+                <div id="esss-tab-dictionary" class="esss-tab-pane" style="display: none;">
+                    <div class="esss-tab-pane-flex">
+                        <div class="esss-form-column">
                             <table class="form-table">
                                 <?php $this->render_dictionary_tab(); ?>
                             </table>
                         </div>
-
-                        <div id="esss-tab-weighting" class="esss-tab-pane" style="display: none;">
-                            <table class="form-table">
-                                <?php $this->render_weighting_tab(); ?>
-                            </table>
+                        <div class="esss-sidebar-column">
+                            <?php $this->render_dictionary_sidebar(); ?>
                         </div>
-
-                        <?php submit_button('Save Settings'); ?>
                     </div>
+                </div>
 
-                    <div id="esss-dictionary-sidebar" style="display: none;">
-                        <?php $this->render_dictionary_sidebar(); ?>
-                    </div>
+                <!-- Tab Content 3 -->
+                <div id="esss-tab-weighting" class="esss-tab-pane" style="display: none;">
+                    <table class="form-table">
+                        <?php $this->render_weighting_tab(); ?>
+                    </table>
+                </div>
+
+                <div class="esss-submit-actions">
+                    <?php submit_button('Save Settings'); ?>
                 </div>
             </form>
         </div>
@@ -102,23 +102,16 @@ class Settings {
         document.addEventListener('DOMContentLoaded', function() {
             const tabs = document.querySelectorAll('.nav-tab');
             const panes = document.querySelectorAll('.esss-tab-pane');
-            const sidebar = document.getElementById('esss-dictionary-sidebar');
 
             tabs.forEach(tab => {
                 tab.addEventListener('click', function(e) {
                     e.preventDefault();
-                    
-                    // Reset tab active heading states
                     tabs.forEach(t => t.classList.remove('nav-tab-active'));
                     this.classList.add('nav-tab-active');
 
-                    // View Switcher Canvas Matrix
                     panes.forEach(p => p.style.display = 'none');
                     const targetId = this.getAttribute('href');
-                    document.querySelector(targetId).style.display = 'block';
-
-                    // Contextual Sidebar Visibility Toggle
-                    sidebar.style.display = (targetId === '#esss-tab-dictionary') ? 'block' : 'none';
+                    document.querySelector(targetId).style.display = targetId === '#esss-tab-dictionary' ? 'flex' : 'block';
                 });
             });
         });
@@ -241,22 +234,27 @@ class Settings {
         <?php
     }
 
-    private function render_dictionary_sidebar() {
-
+    private function render_dictionary_sidebar(): void {
         $dictionary_instance = new Dictionary();
         $cached_terms = $dictionary_instance->get_terms();
-        sort( $cached_terms );              
-
+        sort( $cached_terms );
         ?>
-            <div style="flex: 1; min-width: 300px; background: #ffffff; border: 1px solid #ccd0d4; padding: 20px; border-radius: 4px; align-self: flex-start;">
-                <h2>Active Dictionary (<?php echo count( $cached_terms ); ?> words)</h2>
-                <input type="text" id="esss-vocab-search" placeholder="Type to filter words..." style="width: 100%; margin-bottom: 15px; padding: 6px 10px;">
-                <div id="esss-vocab-list" style="max-height: 400px; overflow-y: auto; padding: 10px; background: #f6f7f7; border: 1px solid #dcdcde; display: flex; flex-wrap: wrap; gap: 6px;">
-                    <?php foreach ( $cached_terms as $term ) : ?>
-                        <span class="esss-vocab-pill" style="display: inline-block; padding: 4px 10px; background: #fff; border: 1px solid #c3c4c7; border-radius: 12px; font-size: 12px;"><?php echo esc_html( $term ); ?></span>
-                    <?php endforeach; ?>
-                </div>
-            </div>
+        <h2>Active Dictionary (<?php echo count( $cached_terms ); ?> words)</h2>
+        <input type="text" id="esss-vocab-search" class="esss-vocab-search-input" placeholder="Type to filter words...">
+        <div id="esss-vocab-list" class="esss-vocab-list-window">
+            <?php foreach ( $cached_terms as $term ) : ?>
+                <span class="esss-vocab-pill"><?php echo esc_html( $term ); ?></span>
+            <?php endforeach; ?>
+        </div>
+
+        <script>
+            document.getElementById('esss-vocab-search')?.addEventListener('input', function(e) {
+                const filter = e.target.value.toLowerCase();
+                document.querySelectorAll('.esss-vocab-pill').forEach(function(pill) {
+                    pill.style.display = pill.textContent.toLowerCase().includes(filter) ? 'inline-block' : 'none';
+                });
+            });
+        </script>
         <?php
     }
 

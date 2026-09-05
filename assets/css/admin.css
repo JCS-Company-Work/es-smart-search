@@ -1,0 +1,79 @@
+/**
+ * Smart Search Suggestion Settings Stylesheet
+ */
+
+/* Main Forms Canvas */
+/* .esss-tab-pane {
+  max-width: 800px;
+} */
+
+/* Flex layout exclusively for the dictionary tab */
+.esss-tab-pane-flex {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+/* Left Column: Form Fields Canvas (Stretches fluidly) */
+.esss-form-column {
+  flex: 1;
+  max-width: 800px;
+}
+
+/* Right Column: Active Vocabulary Sidebar Wrapper (Fixed widescreen footprint) */
+.esss-sidebar-column {
+  flex: 0 0 380px; /* Do not shrink or grow, lock it to a comfortable 380px width */
+  background: #ffffff;
+  border: 1px solid #ccd0d4;
+  padding: 20px;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.esss-sidebar-column h2 {
+  margin-top: 0;
+  font-size: 14px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Search input for filter metrics */
+.esss-vocab-search-input {
+  width: 100%;
+  margin: 0 0 15px 0;
+  padding: 6px 10px;
+  box-sizing: border-box;
+}
+
+/* Vocabulary Scrollable Window Container */
+.esss-vocab-list-window {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f6f7f7;
+  border: 1px solid #dcdcde;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-radius: 3px;
+}
+
+/* Individual Active Term Pills */
+.esss-vocab-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #ffffff;
+  border: 1px solid #c3c4c7;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #2c3338;
+}
+
+/* Submission action block container matrix */
+.esss-submit-actions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f1;
+}
