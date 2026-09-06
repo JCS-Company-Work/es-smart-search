@@ -44,7 +44,7 @@ class Settings {
         register_setting( 'es_smart_search_global_group', 'esss_weight_text', [
             'type'              => 'array',
             'default'           => [],
-            'sanitize_callback' => [ $this, 'sanitize_weight_matrix' ]
+            'sanitize_callback' => [ $this, 'sanitize_weights' ]
         ] );
 
     }
@@ -82,14 +82,7 @@ class Settings {
                 </div>
 
                 <div id="esss-tab-dictionary" class="esss-tab-pane" style="display: none;">
-                    <div class="esss-form-column">
-                        <table class="form-table">
-                            <?php $this->render_dictionary_tab(); ?>
-                        </table>
-                    </div>
-                    <div class="esss-sidebar-column">
-                        <?php $this->render_dictionary_sidebar(); ?>
-                    </div>
+                    <?php include $views_dir . 'tab-dictionary.php'; ?>
                 </div>
 
                 <div id="esss-tab-weighting" class="esss-tab-pane" style="display: none;">
@@ -106,44 +99,25 @@ class Settings {
         </div>
         <?php
     }
-    
+
     /**
-     * Render dictionary tab settings fields
+     * Renders the sidebar for the dictionary tab, including a searchable list of active dictionary terms.
      *
      * @return void
      */
-    private function render_dictionary_tab() {
-
-        ?>
-            <tr class="esss-tab-row dictionary">
-                <th scope="row"><label for="esss_synonyms">Synonym Mappings</label></th>
-                <td>
-                    <textarea name="esss_synonyms" id="esss_synonyms" rows="6" cols="50" class="large-text" placeholder="off white => white, cream&#10;dark grey => grey"><?php echo esc_textarea( get_option( 'esss_synonyms', "off white => white, cream\ndark grey => grey" ) ); ?></textarea>
-                    <p class="description">Format: <code>phrase => match1, match2</code> (One mapping rule phrase expression entry per line).</p>
-                </td>
-            </tr>
-            <tr class="esss-tab-row dictionary">
-                <th scope="row"><label for="esss_manual_additions">Manually Add Words</label></th>
-                <td>
-                    <textarea name="esss_manual_additions" id="esss_manual_additions" rows="3" cols="50" class="large-text"><?php echo esc_textarea( get_option( 'esss_manual_additions', '' ) ); ?></textarea>
-                    <p class="description">Comma-separated terms to force-inject into the dictionary index.</p>
-                </td>
-            </tr>
-            <tr class="esss-tab-row dictionary">
-                <th scope="row"><label for="esss_ignored_terms">Manually Remove Words (Blacklist)</label></th>
-                <td>
-                    <textarea name="esss_ignored_terms" id="esss_ignored_terms" rows="3" cols="50" class="large-text"><?php echo esc_textarea( get_option( 'esss_ignored_terms', '' ) ); ?></textarea>
-                    <p class="description">Comma-separated terms to completely strip out of the suggestion dictionary.</p>
-                </td>
-            </tr>
-        <?php
-    }
-
     private function render_dictionary_sidebar(): void {
+
+        // Instantiate the dictionary class to fetch active terms.
         $dictionary_instance = new Dictionary();
+        
+        // Fetch the cached dictionary terms.
         $cached_terms = $dictionary_instance->get_terms();
+        
+        // Sort the cached terms alphabetically for easier browsing.
         sort( $cached_terms );
+
         ?>
+        <!-- Sidebar for active dictionary terms -->
         <h2>Active Dictionary (<?php echo count( $cached_terms ); ?> words)</h2>
         <input type="text" id="esss-vocab-search" class="esss-vocab-search-input" placeholder="Type to filter words...">
         <div id="esss-vocab-list" class="esss-vocab-list-window">
@@ -216,12 +190,12 @@ class Settings {
     
 
     /**
-     * 
+     * Sanitize the weights input array, ensuring keys are valid and values are clamped between 0 and 100.
      *
-     * @param [type] $input
+     * @param array $input
      * @return array
      */
-    public function sanitize_weight_matrix( $input ): array {
+    public function sanitize_weights( $input ): array {
         // Check if the form arrays are present
         if ( is_array( $input ) && isset( $input['keys'] ) && isset( $input['values'] ) ) {
             $rebuilt_matrix = [];
