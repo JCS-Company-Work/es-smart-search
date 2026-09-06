@@ -39,6 +39,8 @@ class Settings {
         // Register weighting settings
         register_setting( 'es_smart_search_global_group', 'esss_target_acf_fields', [ 'type' => 'array', 'default' => [] ] );
         register_setting( 'es_smart_search_global_group', 'esss_weight_filters', [ 'type' => 'string', 'default' => '' ] );
+        
+        // Register text weighting settings
         register_setting( 'es_smart_search_global_group', 'esss_weight_text', [
             'type'              => 'array',
             'default'           => [],
@@ -54,6 +56,10 @@ class Settings {
         if ( isset( $_GET['settings-updated'] ) && $_GET['settings-updated'] ) {
             add_settings_error( 'esss_messages', 'esss_message', 'Settings Saved and Dictionary Rebuilt.', 'updated' );
         }
+
+        // Path to the views directory
+        $views_dir = plugin_dir_path( __FILE__ ) . 'views/';
+
         ?>
         <div class="wrap">
             <h1>Smart Search Suggestion Settings</h1>
@@ -90,8 +96,9 @@ class Settings {
                 <!-- Tab Content 3 -->
                 <div id="esss-tab-weighting" class="esss-tab-pane" style="display: none;">
                     <table class="form-table">
-                        <?php $this->render_weighting_tab(); ?>
+                        <?php include $views_dir . 'tab-weighting.php'; ?>
                     </table>
+                    
                 </div>
 
                 <div class="esss-submit-actions">
@@ -212,27 +219,6 @@ class Settings {
         <?php
     }
 
-    /**
-     * Render weighting tab settings fields
-     *
-     * @return void
-     */
-    private function render_weighting_tab() {
-
-        $this->render_weighting_fields();
-        ?>
-            <tr class="esss-tab-row weighting">
-                <th scope="row"><label for="esss_weight_filters">Filter search weighting</label></th>
-                <td>
-                    <textarea name="esss_weight_filters" id="esss_weight_filters" rows="10" cols="50" class="large-text"><?php echo esc_textarea( get_option( 'esss_weight_filters', '' ) ); ?></textarea>
-                    <p class="description">Filter weighting scores based on matched field.</p>
-                </td>
-            </tr>
-        <?php
-
-        
-    }
-
     private function render_dictionary_sidebar(): void {
         $dictionary_instance = new Dictionary();
         $cached_terms = $dictionary_instance->get_terms();
@@ -262,7 +248,10 @@ class Settings {
      */
     private function get_all_available_fields(): array {
         $fields = [
+            'category' => 'Category',
+            'effect' => 'Effect',
             'title' => 'Post Title',
+            'usage' => 'Usage',
         ];
 
         $target_cpt = 'batch'; 
@@ -294,7 +283,7 @@ class Settings {
                                 continue;
                             }
                             
-                            $fields[ $field['name'] ] = esc_html( $field['label'] . ' (ACF)' );
+                            $fields[ $field['name'] ] = esc_html( $field['label'] );
                         }
                     }
                 }
@@ -304,153 +293,13 @@ class Settings {
         return $fields;
     }
 
-    private function render_weighting_fields(): void {
-        $current_weights = get_option( 'esss_weight_text', [] );
-        if ( ! is_array( $current_weights ) ) {
-            $current_weights = []; // Instantly drops the stale string, protecting arsort()
-        }
-
-        arsort( $current_weights ); // Automatically sort heaviest items first
-        
-        $available_fields = $this->get_all_available_fields();
-        ?>
-        <tr>
-            <th scope="row">Text Search Weighting</th>
-            <td>
-                <!-- Pass our dynamic database schema down to the JavaScript runner cleanly -->
-                <div id="esss-weight-matrix-wrapper" 
-                    style="max-width: 600px;" 
-                    data-all-fields="<?php echo esc_attr( wp_json_encode( $available_fields ) ); ?>">
-                    
-                    <p class="description" style="margin-bottom: 15px;">Add unique product fields and assign search weights (0-100). Fields already assigned cannot be selected twice.</p>
-                    
-                    <table class="wp-list-table widefat fixed striped" style="margin-bottom: 15px;">
-                        <thead>
-                            <tr>
-                                <th style="width: 60%;">Product Field Name</th>
-                                <th style="width: 25%;">Weight Value (0-100)</th>
-                                <th style="width: 15%; text-align: center;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="esss-weight-rows-container">
-                            <?php foreach ( $current_weights as $field_key => $weight_val ) : 
-                                if ( ! isset( $available_fields[ $field_key ] ) ) {
-                                    continue; // Skip orphan database entries if they disappear from schema
-                                }
-                                ?>
-                                <tr class="esss-weight-row">
-                                    <td>
-                                        <!-- Populated dynamically and filtered via JS on load -->
-                                        <select name="esss_weight_text[keys][]" class="esss-field-selector" data-selected="<?php echo esc_attr( $field_key ); ?>" style="width: 100%;"></select>
-                                    </td>
-                                    <td>
-                                        <input type="number" name="esss_weight_text[values][]" value="<?php echo esc_attr( $weight_val ); ?>" class="small-text" min="0" max="100" style="width: 100%;">
-                                    </td>
-                                    <td style="text-align: center;">
-                                        <button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-
-                    <button type="button" id="esss-add-weight-row" class="button button-secondary">+ Add Custom Field Row</button>
-                </div>
-            </td>
-        </tr>
-        <script type="text/javascript">
-            document.addEventListener('DOMContentLoaded', function() {
-                const wrapper = document.getElementById('esss-weight-matrix-wrapper');
-                const container = document.getElementById('esss-weight-rows-container');
-                const addButton = document.getElementById('esss-add-weight-row');
-
-                if (!wrapper || !container || !addButton) return;
-
-                // Parse the live schema array passed from the backend
-                const allFields = JSON.parse(wrapper.getAttribute('data-all-fields'));
-
-                /**
-                 * Rebuild and filter all dropdowns based on currently active selections
-                 */
-                function updateAllDropdowns() {
-                    const selectors = document.querySelectorAll('.esss-field-selector');
-                    
-                    // Step 1: Collect what values are currently checked across the board
-                    const selectedValues = Array.from(selectors).map(sel => sel.value).filter(val => val !== "");
-
-                    selectors.forEach(select => {
-                        const currentValue = select.value || select.getAttribute('data-selected') || "";
-                        
-                        // Clear existing dropdown options safely
-                        select.innerHTML = '<option value="" disabled selected>Select attribute field...</option>';
-
-                        // Step 2: Loop through total fields and append only if free or currently assigned to this row
-                        for (const [key, label] of Object.entries(allFields)) {
-                            if (!selectedValues.includes(key) || key === currentValue) {
-                                const option = document.createElement('option');
-                                option.value = key;
-                                option.textContent = label;
-                                if (key === currentValue) {
-                                    option.selected = true;
-                                }
-                                select.appendChild(option);
-                            }
-                        }
-
-                        // Sync structural attributes
-                        if (currentValue && !select.value) {
-                            select.value = currentValue;
-                        }
-                        select.removeAttribute('data-selected');
-                    });
-                }
-
-                // Handle Adding New Rows
-                addButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'esss-weight-row';
-                    tr.innerHTML = `
-                        <td>
-                            <select name="esss_weight_text[keys][]" class="esss-field-selector" style="width: 100%;"></select>
-                        </td>
-                        <td>
-                            <input type="number" name="esss_weight_text[values][]" value="50" class="small-text" min="0" max="100" style="width: 100%;">
-                        </td>
-                        <td style="text-align: center;">
-                            <button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button>
-                        </td>
-                    `;
-
-                    container.appendChild(tr);
-                    updateAllDropdowns(); // Instantly update lists for the new row configuration
-                });
-
-                // Intercept selections and deletions via event delegation
-                container.addEventListener('change', function(e) {
-                    if (e.target && e.target.classList.contains('esss-field-selector')) {
-                        updateAllDropdowns();
-                    }
-                });
-
-                container.addEventListener('click', function(e) {
-                    if (e.target && e.target.classList.contains('esss-remove-weight-row')) {
-                        e.preventDefault();
-                        e.target.closest('.esss-weight-row').remove();
-                        updateAllDropdowns(); // Put the deleted option back into rotation instantly
-                    }
-                });
-
-                // Run once on initial screen load to initialize saved rows
-                updateAllDropdowns();
-            });
-            </script>
-        <?php
-    }
+    
 
     /**
-     * Processes incoming form arrays and saves them as a clean associative matrix
+     * 
+     *
+     * @param [type] $input
+     * @return array
      */
     public function sanitize_weight_matrix( $input ): array {
         // Check if the form arrays are present
