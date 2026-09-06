@@ -16,7 +16,7 @@ class Assets {
     }
 
     public function enqueue_admin_assets() {
-        wp_enqueue_script('es-smart-search-admin', ESSS_URL . 'assets/js/admin/admin.js', [], ESSS_VERSION, true);
+        wp_enqueue_script('es-smart-search-admin', ESSS_URL . 'assets/js/admin/Admin.js', [], ESSS_VERSION, true);
         wp_enqueue_style('es-smart-search-admin', ESSS_URL . 'assets/css/admin.css', [], ESSS_VERSION);
     }
 
