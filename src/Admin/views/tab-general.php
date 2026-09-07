@@ -39,17 +39,3 @@ defined( 'ABSPATH' ) || exit;
             </fieldset>
         </td>
     </tr>
-    <tr class="esss-tab-row general">
-        <th scope="row">Target ACF Index Fields</th>
-        <td>
-            <?php
-            $all_available_fields = [ 'tile_colour', 'tile_finish', 'tile_effect', 'tile_size_friendly', 'factory_name' ];
-            $saved_fields = (array) get_option( 'esss_target_acf_fields', $all_available_fields );
-            foreach ( $all_available_fields as $field_slug ) : ?>
-                <label style="display: block; margin-bottom: 6px;">
-                    <input type="checkbox" name="esss_target_acf_fields[]" value="<?php echo esc_attr( $field_slug ); ?>" <?php checked( in_array( $field_slug, $saved_fields, true ) ); ?>>
-                    <code><?php echo esc_html( $field_slug ); ?></code>
-                </label>
-            <?php endforeach; ?>
-        </td>
-    </tr>

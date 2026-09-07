@@ -35,9 +35,6 @@ class Settings {
         register_setting( 'es_smart_search_global_group', 'esss_synonyms', [ 'type' => 'string', 'default' => '' ] );
         register_setting( 'es_smart_search_global_group', 'esss_ignored_terms', [ 'type' => 'string', 'default' => '' ] );
         register_setting( 'es_smart_search_global_group', 'esss_manual_additions', [ 'type' => 'string', 'default' => '' ] );
-
-        // Register weighting settings
-        register_setting( 'es_smart_search_global_group', 'esss_target_acf_fields', [ 'type' => 'array', 'default' => [] ] );
         
         // Register text weighting settings
         register_setting( 'es_smart_search_global_group', 'esss_weight_text', [
@@ -143,8 +140,11 @@ class Settings {
         <?php
     }
 
+
     /**
-     * Helper to fetch only text-searchable ACF fields assigned to the batch CPT
+     * Build array of available fields for weighting (ACF and manually added)
+     *
+     * @return array
      */
     private function get_all_available_fields(): array {
         $fields = [
@@ -196,8 +196,6 @@ class Settings {
         return $fields;
     }
 
-    
-
     /**
      * Sanitize the weights input array, ensuring keys are valid and values are clamped between 0 and 100.
      *
@@ -208,24 +206,25 @@ class Settings {
 
         // Check if the form arrays are present
         if ( is_array( $input ) && isset( $input['keys'] ) && isset( $input['values'] ) ) {
+
+            // Array to hold the sanitized key-value pairs
             $rebuilt_matrix = [];
             
             foreach ( $input['keys'] as $index => $key_slug ) {
                 $clean_key = sanitize_key( trim( $key_slug ) );
                 
                 // Skip rows where no field option was selected
-                if ( empty( $clean_key ) ) {
-                    continue;
-                }
+                if ( empty( $clean_key ) ) continue;
                 
-                // Capture value, cast to integer, and clamp tightly between 0 and 100
+                // Capture value, cast to integer, and clamp between 0 and 100
                 $raw_weight = isset( $input['values'][ $index ] ) ? absint( $input['values'][ $index ] ) : 50;
                 $clamped_weight = max( 0, min( 100, $raw_weight ) );
                 
                 $rebuilt_matrix[ $clean_key ] = $clamped_weight;
             }
             
-            arsort( $rebuilt_matrix ); // Keep heaviest entries at the top
+            // Sort so highest weightings are at the top
+            arsort( $rebuilt_matrix ); 
             return $rebuilt_matrix;
         }
         
