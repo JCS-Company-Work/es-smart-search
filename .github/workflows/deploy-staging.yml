@@ -16,8 +16,8 @@ jobs:
             - name: Configure SSH
               run: |
                   mkdir -p ~/.ssh
-                  echo "${{ secrets.PT_PASS }}" > ~/.ssh/id_ed25519
-                  chmod 600 ~/.ssh/id_ed25519
+                  echo "${{ secrets.PT_PASS }}" > ~/.ssh/github_actions_deploy_key.
+                  chmod 600 ~/.ssh/github_actions_deploy_key.
                   ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
             - name: Deploy to Staging
@@ -33,7 +33,7 @@ jobs:
                     --exclude=".env" \
                     --exclude=".DS_Store" \
                     --exclude="vendor/" \
-                    -e "ssh -i ~/.ssh/id_ed25519" \
+                    -e "ssh -i ~/.ssh/github_actions_deploy_key." \
                     ./ \
                     ${{ secrets.PT_SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.STAGING_DEPLOY_PATH }}
 
