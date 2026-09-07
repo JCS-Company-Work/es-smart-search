@@ -16,7 +16,9 @@ Run tests:
 composer test
 ```
 
-Current tests cover registration, search responses, and index invalidation hooks.
+Current tests cover plugin registration and index invalidation hooks. SearchMatcher
+weighting, filter matching, reporting validation, and most REST response behavior
+still need focused PHP coverage.
 
 These tests do not load WordPress or connect to a database. Database-backed behaviour, including `Dictionary::rebuild()` and search reporting, belongs in the integration suite.
 

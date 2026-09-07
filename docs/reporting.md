@@ -26,11 +26,11 @@ It stores:
 - `query_raw` and `query_normalised`
 - `matching_batches`
 - `displayed_parents`
-- `is_zero_result`
+- `has_results`
 - `top_matches_json`
 - `page_path`
 
-`matching_batches` is the number of matching batch records from PHP. `displayed_parents` is the number of product cards shown to the customer. These values can differ because one card can contain several batches.
+`matching_batches` is the number of matching batch records from PHP. `displayed_parents` is the number of product cards shown to the customer. These values can differ because one card can contain several batches. `has_results` is `1` when at least one parent card is displayed and `0` otherwise.
 
 ## Diagnostic Snapshot
 
@@ -40,6 +40,11 @@ It stores:
 
 Use anonymous browser-generated IDs. Do not store IP addresses or full user-agent strings. A visitor ID may persist in local storage; a session ID should expire after inactivity.
 
+The report route is publicly callable because it is intended for browser clients;
+the current implementation relies on the client payload and does not authenticate
+or rate-limit individual report submissions. Treat the table as analytics input,
+not as a trusted audit log.
+
 ## Dashboard Use
 
-The dashboard should prioritise common searches, zero-result searches, low-result searches, and sample ranking details. Index the date, normalised query, zero-result flag, visitor ID, and session ID; do not index diagnostic JSON.
+The dashboard should prioritise common searches, zero-result searches, low-result searches, and sample ranking details. Index the date, normalised query, `has_results`, visitor ID, and session ID; do not index diagnostic JSON.
