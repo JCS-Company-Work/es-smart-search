@@ -7,17 +7,8 @@ use EsSmartSearch\Indexing\SearchNormalizer;
 class SearchMatcher {
 
     // Define the weights for each field group and the groups that allow fuzzy matching
-    private array $weights = [
-        'product_code' => 100,
-        'size'         => 90,
-        'usage'        => 80,
-        'colour'       => 70,
-        'effect'       => 65,
-        'category'     => 60,
-        'finish'       => 55,
-        'title'        => 50,
-        'factory'      => 35,
-    ];
+    private array $weights = [];
+    private array $filter_weights = [];
 
     // Define the groups that allow fuzzy matching
     private array $fuzzy_groups = [ 'title', 'colour', 'effect', 'category', 'factory' ];
@@ -25,16 +16,45 @@ class SearchMatcher {
     // Define a list of common terms to ignore during scoring
     private array $ignored_terms = [ 'tile', 'tiles', 'porcelain', 'product', 'products' ];
 
-    /**
-     * Get the weights for the active filter matches.
-     *
-     * @param array<string, mixed> $filters The active filters.
-     * @return array<string, int> The weights for the matched filters.
-     */
-    public function get_filter_match_weights( $filters ) {
+    public function __construct() {
+        $this->load_search_weights();
+        $this->load_filter_weights();
+    }
 
-        // Define the default weights for each filter group.
-        $weights = [
+    /**
+     * Load search weights dynamically from the database with built-in fallbacks
+     */
+    private function load_search_weights(): void {
+        // Hardcoded structural baseline fallbacks
+        $default_weights = [
+            'product_code' => 100,
+            'size'         => 90,
+            'usage'        => 80,
+            'colour'       => 70,
+            'effect'       => 65,
+            'category'     => 60,
+            'finish'       => 55,
+            'title'        => 50,
+            'factory'      => 35,
+        ];
+
+        // Fetch our option payload from the database
+        $saved_weights = get_option( 'esss_weight_text', [] );
+
+        // If saved weights are empty or corrupted, fall back to default arrays
+        $this->weights = ( is_array( $saved_weights ) && ! empty( $saved_weights ) ) 
+            ? $saved_weights 
+            : $default_weights;
+
+        // Ensure descending importance ordering is locked in before calculations run
+        arsort( $this->weights );
+    }
+
+    /**
+     * Load filter weights dynamically from options
+     */
+    private function load_filter_weights(): void {
+        $default_filters = [
             'colour'      => 70,
             'effect'      => 65,
             'category'    => 60,
@@ -48,18 +68,33 @@ class SearchMatcher {
             'quantity'    => 40,
         ];
 
-        // Initialize an array to store the matched filter weights.
+        $saved_filters = get_option( 'esss_weight_filters', [] );
+
+        $this->filter_weights = ( is_array( $saved_filters ) && ! empty( $saved_filters ) ) 
+            ? $saved_filters 
+            : $default_filters;
+
+        arsort( $this->filter_weights );
+    }
+
+    /**
+     * Get the weights for the active filter matches.
+     *
+     * @param array<string, mixed> $filters The active filters.
+     * @return array<string, int> The weights for the matched filters.
+     */
+    public function get_filter_match_weights( $filters ) {
         $matched = [];
 
-        // Loop over the active filters and collect their corresponding weights.
+        // Loop over the active filters and check against our custom backend weights
         foreach ( $filters as $group => $values ) {
             $group = 'categories' === $group ? 'category' : $group;
-            if ( isset( $weights[ $group ] ) ) {
-                $matched[ $group ] = $weights[ $group ];
+            
+            if ( isset( $this->filter_weights[ $group ] ) ) {
+                $matched[ $group ] = $this->filter_weights[ $group ];
             }
         }
 
-        // Return matches for the active filters.
         return $matched;
     }
 

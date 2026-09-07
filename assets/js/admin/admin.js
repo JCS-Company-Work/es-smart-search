@@ -1,91 +1,85 @@
 /**
- * Manage the dynamic text search weighting matrix repeater inside WordPress admin.
+ * Manage the global WordPress Admin configurations and dynamic repeater inputs.
  */
 class ESSS_Admin {
   /**
-   * Set up the repeater elements and kick off event listeners.
+   * Set up global view handles and initialize all functional block components.
    */
   constructor() {
-    this.wrapper = document.getElementById("esss-weight-matrix-wrapper");
-    this.container = document.getElementById("esss-weight-rows-container");
-    this.addButton = document.getElementById("esss-add-weight-row");
-
-    // Fail-safe exit if the structural elements are missing from the current view
-    if (!this.wrapper || !this.container || !this.addButton) {
-      return;
-    }
-
-    // Initialize the master catalog options cache from the DOM metadata block
-    this.allFields =
-      JSON.parse(this.wrapper.getAttribute("data-all-fields")) || {};
-
-    this.init();
-  }
-
-  /**
-   * Start the engine processes and initial rendering runs
-   */
-  init() {
-    this.bindEvents();
-    this.updateAllDropdowns();
     this.initTabs();
+
+    // Query all active weighting manager rows across the canvas workspace
+    const managerBlocks = document.querySelectorAll(
+      ".esss-weight-manager-block",
+    );
+    managerBlocks.forEach((block) => {
+      this.initWeightBlock(block);
+    });
   }
 
   /**
-   * Bind core interactivity routines using structural context pointers
+   * Initialize a specific repeatable block layout instance cleanly
    */
-  bindEvents() {
-    // Handle explicit row additions
-    this.addButton.addEventListener("click", (e) => this.handleRowAddition(e));
+  initWeightBlock(block) {
+    const container = block.querySelector(".esss-weight-rows-container");
+    const addButton = block.querySelector(".esss-add-weight-row");
 
-    // Intercept dropdown changes using dynamic event delegation
-    this.container.addEventListener("change", (e) => {
+    if (!container || !addButton) return;
+
+    const isFilterType = block.getAttribute("data-type") === "filter";
+    const allFields = JSON.parse(block.getAttribute("data-all-fields")) || {};
+    const inputName = isFilterType ? "esss_weight_filters" : "esss_weight_text";
+
+    // Rebuild initial state options on screen mount layout
+    this.updateDropdownOptions(block, allFields);
+
+    // Bind Event: Row creation trigger (delegates to our dedicated handler method)
+    addButton.addEventListener("click", (e) => {
+      this.handleRowAddition(e, container, inputName, block, allFields);
+    });
+
+    // Bind Event: Dropdown select choice tracking modifications via event delegation
+    container.addEventListener("change", (e) => {
       if (e.target && e.target.classList.contains("esss-field-selector")) {
-        this.updateAllDropdowns();
+        this.updateDropdownOptions(block, allFields);
       }
     });
 
-    // Intercept row deletions using dynamic event delegation
-    this.container.addEventListener("click", (e) => {
+    // Bind Event: Row target destructions via event delegation
+    container.addEventListener("click", (e) => {
       if (e.target && e.target.classList.contains("esss-remove-weight-row")) {
         e.preventDefault();
         e.target.closest(".esss-weight-row").remove();
-        this.updateAllDropdowns();
+        this.updateDropdownOptions(block, allFields);
       }
     });
   }
 
   /**
-   * Append a clean, unassigned row template grid to the DOM canvas
+   * Dedicated method to handle appending a brand new row structure
    */
-  handleRowAddition(e) {
+  handleRowAddition(e, container, inputName, block, allFields) {
     e.preventDefault();
 
     const tr = document.createElement("tr");
     tr.className = "esss-weight-row";
     tr.innerHTML = `
-            <td>
-                <select name="esss_weight_text[keys][]" class="esss-field-selector" style="width: 100%;"></select>
-            </td>
-            <td>
-                <input type="number" name="esss_weight_text[values][]" value="50" class="small-text" min="0" max="100" style="width: 100%;">
-            </td>
-            <td style="text-align: center;">
-                <button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button>
-            </td>
-        `;
+        <td><select name="${inputName}[keys][]" class="esss-field-selector" style="width: 100%;"></select></td>
+        <td><input type="number" name="${inputName}[values][]" value="50" class="small-text" min="0" max="100" style="width: 100%;"></td>
+        <td style="text-align: center;"><button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button></td>
+    `;
 
-    this.container.appendChild(tr);
-    this.updateAllDropdowns();
+    container.appendChild(tr);
+    this.updateDropdownOptions(block, allFields);
   }
-
   /**
-   * Rebuild and strip chosen items from available select field option pools
+   * Rebuild available dropdown option arrays inside the scope of a single block wrapper matrix
    */
-  updateAllDropdowns() {
-    const selectors = document.querySelectorAll(".esss-field-selector");
+  updateDropdownOptions(block, allFields) {
+    const selectors = block.querySelectorAll(".esss-field-selector");
+    const isFilterBlock = block.getAttribute("data-type") === "filter";
 
-    // Identify every option currently claimed by active inputs on the viewport screen canvas
+    // Identify options currently claimed *strictly within this block container context*
     const selectedValues = Array.from(selectors)
       .map((sel) => sel.value)
       .filter((val) => val !== "");
@@ -94,12 +88,53 @@ class ESSS_Admin {
       const currentValue =
         select.value || select.getAttribute("data-selected") || "";
 
-      // Flush out existing option strings before rebuilding
       select.innerHTML =
         '<option value="" disabled selected>Select attribute field...</option>';
 
-      // Evaluate fields dynamically against ownership vectors
-      for (const [key, label] of Object.entries(this.allFields)) {
+      // Core filter key arrays: explicitly isolate key sets to ensure separation
+      const filterKeys = [
+        "colour",
+        "effect",
+        "category",
+        "finish",
+        "size",
+        "dimensions",
+        "usage",
+        "thickness",
+        "slip_rating",
+        "discount",
+        "quantity",
+      ];
+
+      for (const [key, label] of Object.entries(allFields)) {
+        // Match Context: If we are on filters block, only allow explicit filter array slugs
+        if (isFilterBlock && !filterKeys.includes(key)) {
+          continue;
+        }
+        // Match Context: If we are on text block, explicitly block filter-only taxonomy keys
+        if (
+          !isFilterBlock &&
+          filterKeys.includes(key) &&
+          key !== "size" &&
+          key !== "usage" &&
+          key !== "colour" &&
+          key !== "category" &&
+          key !== "finish" &&
+          key !== "effect"
+        ) {
+          // Keep your valid overlapping text attributes, but screen out strictly numeric ones
+          if (
+            key === "thickness" ||
+            key === "slip_rating" ||
+            key === "discount" ||
+            key === "quantity" ||
+            key === "dimensions"
+          ) {
+            continue;
+          }
+        }
+
+        // Append options that are free or assigned to the current row
         if (!selectedValues.includes(key) || key === currentValue) {
           const option = document.createElement("option");
           option.value = key;
@@ -112,13 +147,13 @@ class ESSS_Admin {
         }
       }
 
-      // Lock selected attributes back to their target element structures
       if (currentValue && !select.value) {
         select.value = currentValue;
       }
       select.removeAttribute("data-selected");
     });
   }
+
   /**
    * Initialize tabbed navigation for the admin interface.
    */
@@ -134,8 +169,12 @@ class ESSS_Admin {
 
         panes.forEach((p) => (p.style.display = "none"));
         const targetId = this.getAttribute("href");
-        document.querySelector(targetId).style.display =
-          targetId === "#esss-tab-dictionary" ? "flex" : "block";
+
+        const targetPane = document.querySelector(targetId);
+        if (targetPane) {
+          targetPane.style.display =
+            targetId === "#esss-tab-dictionary" ? "flex" : "block";
+        }
       });
     });
   }

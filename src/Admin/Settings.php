@@ -38,10 +38,16 @@ class Settings {
 
         // Register weighting settings
         register_setting( 'es_smart_search_global_group', 'esss_target_acf_fields', [ 'type' => 'array', 'default' => [] ] );
-        register_setting( 'es_smart_search_global_group', 'esss_weight_filters', [ 'type' => 'string', 'default' => '' ] );
         
         // Register text weighting settings
         register_setting( 'es_smart_search_global_group', 'esss_weight_text', [
+            'type'              => 'array',
+            'default'           => [],
+            'sanitize_callback' => [ $this, 'sanitize_weights' ]
+        ] );
+
+        // Register filter weighting settings
+        register_setting( 'es_smart_search_global_group', 'esss_weight_filters', [
             'type'              => 'array',
             'default'           => [],
             'sanitize_callback' => [ $this, 'sanitize_weights' ]
@@ -222,6 +228,5 @@ class Settings {
         // Fallback safeguard
         return is_array( $input ) ? $input : [];
     }
-
 
 }
