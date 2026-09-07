@@ -54,6 +54,8 @@ class SearchMatcher {
      * Load filter weights dynamically from options
      */
     private function load_filter_weights(): void {
+
+        // Baseline filters for fallback
         $default_filters = [
             'colour'      => 70,
             'effect'      => 65,
@@ -68,12 +70,15 @@ class SearchMatcher {
             'quantity'    => 40,
         ];
 
+        // Fetch saved filter options from the database
         $saved_filters = get_option( 'esss_weight_filters', [] );
 
+        // If saved filters are empty or not an array, fall back to default arrays
         $this->filter_weights = ( is_array( $saved_filters ) && ! empty( $saved_filters ) ) 
             ? $saved_filters 
             : $default_filters;
 
+        // Sort filters weights into descending order
         arsort( $this->filter_weights );
     }
 
@@ -84,6 +89,8 @@ class SearchMatcher {
      * @return array<string, int> The weights for the matched filters.
      */
     public function get_filter_match_weights( $filters ) {
+
+        // Array to hold matched weights for the active filters
         $matched = [];
 
         // Loop over the active filters and check against our custom backend weights

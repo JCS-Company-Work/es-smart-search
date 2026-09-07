@@ -20,12 +20,11 @@ $available_fields = $this->get_all_available_fields();
 $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
 ?>
 
-<!-- ================= ROW 1: TEXT WEIGHTS ================= -->
 <tr>
     <th scope="row">Text Search Weighting</th>
     <td>
         <!-- Updated to use class and removed matrix ID -->
-        <div class="esss-weight-manager-block" style="max-width: 600px;" data-all-fields="<?php echo $json_fields; ?>" data-type="text">
+        <div class="esss-weight-manager-block" data-all-fields="<?php echo $json_fields; ?>" data-type="text">
             <p class="description" style="margin-bottom: 15px;">Add unique product fields and assign search weights (0-100). Fields already assigned cannot be selected twice.</p>
             
             <table class="wp-list-table widefat fixed striped" style="margin-bottom: 15px;">
@@ -33,7 +32,7 @@ $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
                     <tr>
                         <th style="width: 60%;">Product Field Name</th>
                         <th style="width: 25%;">Weight Value (0-100)</th>
-                        <th style="width: 15%; text-align: center;">Action</th>
+                        <th style="width: 15%;"></th>
                     </tr>
                 </thead>
                 <!-- Changed from ID to Class -->
@@ -49,7 +48,7 @@ $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
                                 <input type="number" name="esss_weight_text[values][]" value="<?php echo esc_attr( $weight_val ); ?>" class="small-text" min="0" max="100" style="width: 100%;">
                             </td>
                             <td style="text-align: center;">
-                                <button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button>
+                                <button type="button" class="button esss-remove-weight-row">Delete</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -61,19 +60,18 @@ $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
     </td>
 </tr>
 
-<!-- ================= ROW 2: FILTER WEIGHTS ================= -->
 <tr>
     <th scope="row">Active Filter Weighting</th>
     <td>
         <div class="esss-weight-manager-block" style="max-width: 600px;" data-all-fields="<?php echo $json_fields; ?>" data-type="filter">
-            <p class="description" style="margin-bottom: 12px;">Configure weights for active facetted filters applied during navigation.</p>
+            <p class="description" style="margin-bottom: 12px;">Configure weights for active filters.</p>
             
             <table class="wp-list-table widefat fixed striped" style="margin-bottom: 15px;">
                 <thead>
                     <tr>
                         <th style="width: 60%;">Filter Group Name</th>
                         <th style="width: 25%;">Weight Value (0-100)</th>
-                        <th style="width: 15%; text-align: center;">Action</th>
+                        <th style="width: 15%;"></th>
                     </tr>
                 </thead>
                 <tbody class="esss-weight-rows-container">
@@ -88,7 +86,7 @@ $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
                                 <input type="number" name="esss_weight_filters[values][]" value="<?php echo esc_attr( $weight_val ); ?>" class="small-text" min="0" max="100" style="width: 100%;">
                             </td>
                             <td style="text-align: center;">
-                                <button type="button" class="button esss-remove-weight-row" style="color: #b32d2e; border-color: #b32d2e;">Delete</button>
+                                <button type="button" class="button esss-remove-weight-row">Delete</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>

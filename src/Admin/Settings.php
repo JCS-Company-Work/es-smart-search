@@ -152,11 +152,14 @@ class Settings {
             'effect' => 'Effect',
             'title' => 'Post Title',
             'usage' => 'Usage',
+            'thickness' => 'Thickness',
+            'quantity' => 'Quantity',
+            'discount' => 'Discount'
         ];
 
         $target_cpt = 'batch'; 
 
-        // Define the ONLY field types that can be part of full-text search matching
+        // Define the ONLY field types that can be part weighting dropdowns (can be overwritten above)
         $allowed_types = [
             'text',
             'textarea',
@@ -202,6 +205,7 @@ class Settings {
      * @return array
      */
     public function sanitize_weights( $input ): array {
+
         // Check if the form arrays are present
         if ( is_array( $input ) && isset( $input['keys'] ) && isset( $input['values'] ) ) {
             $rebuilt_matrix = [];

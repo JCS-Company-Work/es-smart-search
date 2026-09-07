@@ -73,3 +73,16 @@
   padding-top: 15px;
   border-top: 1px solid #f0f0f1;
 }
+
+/** Weighting tab **/
+.esss-weight-manager-block {
+  max-width: 600px;
+}
+.esss-weight-manager-block table th {
+  padding: 12px;
+}
+
+.esss-weight-row .esss-remove-weight-row {
+  color: #b32d2e;
+  border-color: #b32d2e;
+}
