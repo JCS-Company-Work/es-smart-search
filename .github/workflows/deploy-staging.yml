@@ -16,7 +16,7 @@ jobs:
             - name: Configure SSH
               run: |
                   mkdir -p ~/.ssh
-                  echo "${{ secrets.PT_PASS }}" > ~/.ssh/github_actions_deploy_key
+                  echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/github_actions_deploy_key
                   chmod 600 ~/.ssh/github_actions_deploy_key
                   ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
