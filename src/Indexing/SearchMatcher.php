@@ -224,7 +224,16 @@ class SearchMatcher {
             }
 
             // Fallback to fuzzy matching since exact matching found nothing
-            $score += $this->calculate_fuzzy_score( $word, $fields, $matched_fields );
+            //$score += $this->calculate_fuzzy_score( $word, $fields, $matched_fields );
+
+            // Fuzzy matching as a fallback
+            $fuzzy_score = $this->calculate_fuzzy_score( $word, $fields, $matched_fields );
+
+            if ( 0 === $fuzzy_score ) {
+                return 0;
+            }
+
+            $score += $fuzzy_score;
         }
 
         return $score;
