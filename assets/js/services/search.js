@@ -60,7 +60,7 @@ export class SearchService {
       // If visibleProductCount is zero, show suggestion links if there are any
       if (visibleProductCount === 0 && data.suggestion) {
         this.app.suggestionService.showSuggestion(data.suggestion);
-      } else if (visibleProductCount === 0) {
+      } else if (visibleProductCount === 0 && data.fallback) {
         this.app.displayService.handleZeroResultsFallback(
           data.fallback.type,
           data.fallback.terms,
