@@ -19,7 +19,7 @@ final class SearchIndex {
      * @return void
      */
     public function register(): void {
-        add_action( 'save_post_batch', [ $this, 'invalidate' ] );
+        add_action( 'save_post_batch', [ $this, 'rebuild' ] );
         add_action( 'acf/save_post', [ $this, 'invalidate_acf' ], 9999 );
         add_action( 'updated_post_meta', [ $this, 'invalidate_meta' ], 10, 4 );
         add_action( 'added_post_meta', [ $this, 'invalidate_meta' ], 10, 4 );
@@ -47,12 +47,8 @@ final class SearchIndex {
         }
 
         // Build the searchable batches as the cache is unavailable or invalid.
-        $batches = $this->build_searchable_batches();
+        $batches = $this->rebuild();
         $index_source = 'rebuilt';
-        $expiration = 30 * DAY_IN_SECONDS;
-
-        // Store the rebuilt searchable batches in the transient for future use.
-        set_transient( ESSS_INDEX_TRANSIENT, $batches, $expiration );
 
         // Return the rebuilt searchable batches.
         return $batches;
@@ -133,6 +129,18 @@ final class SearchIndex {
                 ],
             ];
         }
+
+        return $batches;
+    }
+
+    public function rebuild(): array {
+        $batches = $this->build_searchable_batches();
+
+        set_transient(
+            ESSS_INDEX_TRANSIENT,
+            $batches,
+            30 * DAY_IN_SECONDS
+        );
 
         return $batches;
     }
@@ -219,15 +227,6 @@ final class SearchIndex {
     }
 
     /**
-     * Delete the cached search index.
-     *
-     * @return void
-     */
-    public function invalidate(): void {
-        delete_transient( ESSS_INDEX_TRANSIENT );
-    }
-
-    /**
      * Invalidate the cached index when ACF fields are saved.
      *
      * @param int|string $post_id Post whose ACF fields were saved.
@@ -235,7 +234,7 @@ final class SearchIndex {
      */
     public function invalidate_acf( $post_id ): void {
         if ( 'batch' === get_post_type( $post_id ) ) {
-            $this->invalidate();
+            $this->rebuild();
         }
     }
 
@@ -248,7 +247,7 @@ final class SearchIndex {
      */
         public function invalidate_meta( $meta_id, $object_id ): void {
         if ( 'batch' === get_post_type( $object_id ) ) {
-            $this->invalidate();
+            $this->rebuild();
         }
     }
 
@@ -265,7 +264,7 @@ final class SearchIndex {
      */
     public function invalidate_terms( $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids ): void {
         if ( 'batch' === get_post_type( $object_id ) ) {
-            $this->invalidate();
+            $this->rebuild();
         }
     }
 
@@ -277,7 +276,7 @@ final class SearchIndex {
      */
     public function invalidate_product( $product_id ): void {
         if ( 'batch' === get_post_type( $product_id ) ) {
-            $this->invalidate();
+            $this->rebuild();
         }
     }
 
@@ -289,7 +288,7 @@ final class SearchIndex {
      */
     public function invalidate_deleted( $post_id ): void {
         if ( 'batch' === get_post_type( $post_id ) ) {
-            $this->invalidate();
+            $this->rebuild();
         }
     }
 }

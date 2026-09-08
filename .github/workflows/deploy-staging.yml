@@ -1,41 +1,42 @@
 name: Deploy to Staging
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Configure SSH
-              run: |
-                  mkdir -p ~/.ssh
-                  echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/github_actions_deploy_key
-                  chmod 600 ~/.ssh/github_actions_deploy_key
-                  ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/github_actions_deploy_key
+          chmod 600 ~/.ssh/github_actions_deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-            - name: Deploy to Staging
-              run: |
-                  rsync -azc --delete \
-                    --omit-dir-times \
-                    --no-times \
-                    --no-perms \
-                    --no-owner \
-                    --no-group \
-                    --exclude=".git" \
-                    --exclude=".github" \
-                    --exclude=".env" \
-                    --exclude=".DS_Store" \
-                    --exclude="vendor/" \
-                    -e "ssh -i ~/.ssh/github_actions_deploy_key" \
-                    ./ \
-                    ${{ secrets.PT_SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.STAGING_DEPLOY_PATH }}
+      - name: Deploy to Staging
+        run: |
+          rsync -azc --delete \
+            --omit-dir-times \
+            --no-times \
+            --no-perms \
+            --no-owner \
+            --no-group \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude=".env" \
+            --exclude=".DS_Store" \
+            --exclude="vendor/" \
+            --exclude="tests/" \
+            -e "ssh -i ~/.ssh/github_actions_deploy_key" \
+            ./ \
+            ${{ secrets.PT_SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.STAGING_DEPLOY_PATH }}
 
-            - name: Complete
-              run: echo "Staging deployment complete."
+      - name: Complete
+        run: echo "Staging deployment complete."

@@ -24,10 +24,10 @@ final class SearchIndexTest extends TestCase {
     }
 
     #[DoesNotPerformAssertions]
-    public function test_registers_index_invalidation_hooks(): void {
+    public function test_registers_index_rebuild_hooks(): void {
         $index = new SearchIndex();
 
-        Functions\expect( 'add_action' )->once()->with( 'save_post_batch', [ $index, 'invalidate' ] );
+        Functions\expect( 'add_action' )->once()->with( 'save_post_batch', [ $index, 'rebuild' ] );
         Functions\expect( 'add_action' )->once()->with( 'acf/save_post', [ $index, 'invalidate_acf' ], 9999 );
         Functions\expect( 'add_action' )->times( 3 )->withArgs( function ( $hook, $callback, $priority, $accepted_args ) use ( $index ): bool {
             return in_array( $hook, [ 'updated_post_meta', 'added_post_meta', 'deleted_post_meta' ], true )
@@ -42,12 +42,4 @@ final class SearchIndexTest extends TestCase {
         $index->register();
     }
 
-    #[DoesNotPerformAssertions]
-    public function test_invalidate_deletes_the_search_transient(): void {
-        Functions\expect( 'delete_transient' )
-            ->once()
-            ->with( ESSS_INDEX_TRANSIENT );
-
-        ( new SearchIndex() )->invalidate();
-    }
 }
