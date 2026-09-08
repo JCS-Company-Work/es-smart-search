@@ -115,7 +115,7 @@ final class SearchIndex {
                 'fields' => [
                     'title'      => [ SearchNormalizer::normalise( $product->get_name() ), SearchNormalizer::normalise( get_post_field( 'post_title', $batch_id ) ) ],
                     'colour'    => [ SearchNormalizer::normalise( $fields['colour'] ?? '' ) ],
-                    'effect'    => array_values( array_filter( [ SearchNormalizer::normalise( is_wp_error( $effects ) ? '' : ( $effects[0] ?? '' ) ) ] ) ),
+                    'effect' => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $effects ) ? [] : $effects),
                     'finish'    => [ SearchNormalizer::normalise( $fields['finish'] ?? '' ) ],
                     'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
                     'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),

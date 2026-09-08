@@ -31,6 +31,7 @@ class SearchMatcher {
             'size'         => 90,
             'usage'        => 80,
             'colour'       => 70,
+            'category'     => 65,
             'effect'       => 65,
             'finish'       => 55,
             'title'        => 50,
@@ -93,7 +94,10 @@ class SearchMatcher {
 
         // Loop over the active filters and check against our custom backend weights
         foreach ( $filters as $group => $values ) {
-            $group = 'categories' === $group ? 'category' : $group;
+            //$group = 'categories' === $group ? 'category' : $group;
+
+            // Map 'category' and 'categories' to 'effect' for consistency.
+            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
             
             if ( isset( $this->filter_weights[ $group ] ) ) {
                 $matched[ $group ] = $this->filter_weights[ $group ];
@@ -116,7 +120,11 @@ class SearchMatcher {
 
         // Loop over the active filters and collect their corresponding values for scoring.
         foreach ( $filters as $group => $values ) {
-            $group = 'categories' === $group ? 'category' : $group;
+            //$group = 'categories' === $group ? 'category' : $group;
+
+            // Map 'category' and 'categories' to 'effect' for consistency.
+            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
+
             $values = is_array( $values ) ? $values : [ $values ];
             $matched[ $group ] = implode( ', ', array_map( 'sanitize_text_field', $values ) ) . ' (filter)';
         }
@@ -136,7 +144,10 @@ class SearchMatcher {
         foreach ( $filters as $group => $values ) {
 
             // Map 'categories' to 'category' for consistency.
-            $group = 'categories' === $group ? 'category' : $group;
+            //$group = 'categories' === $group ? 'category' : $group;
+            
+            // Map 'category' and 'categories' to 'effect' for consistency.
+            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
         
             // Map 'dimensions' to 'size' for consistency.
             $group = 'dimensions' === $group ? 'size' : $group;
