@@ -1,7 +1,7 @@
 <?php
 /*
-Plugin Name: ES Smart Search Prototype
-Description: Prototype server-backed live search for Emporio Surfaces.
+Plugin Name: ES Smart Search
+Description: Server-backed live search for Emporio Surfaces.
 Version: 0.1.0
 Author: Emporio Surfaces
 */

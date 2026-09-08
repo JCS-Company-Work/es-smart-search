@@ -72,6 +72,7 @@ class ESSS_Admin {
     container.appendChild(tr);
     this.updateDropdownOptions(block, allFields);
   }
+
   /**
    * Rebuild available dropdown option arrays inside the scope of a single block wrapper matrix
    */

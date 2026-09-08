@@ -144,7 +144,7 @@ class Dictionary {
             $batch_ids_format = implode( ',', array_fill( 0, count( $valid_batch_ids ), '%d' ) );
             $acf_fields_format = implode( ',', array_fill( 0, count( $this->target_acf_fields ), '%s' ) );
 
-            // No self-joining on postmeta needed anymore! This query is clean and easy to read.
+            // Prepare and execute the query to fetch post titles and meta values for valid batches and target ACF fields.
             $query = $wpdb->prepare(
                 "SELECT DISTINCT p.post_title, m.meta_value 
                  FROM {$wpdb->posts} p

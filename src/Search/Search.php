@@ -152,7 +152,7 @@ class Search {
                 $matches_all_words = true;
 
                 foreach ( $query_words as $word ) {
-                    // If a single word (like "white") is missing from this product, exclude it immediately
+                    // Only match items that contain all query words
                     if ( false === strpos( $searchable_string, $word ) ) {
                         $matches_all_words = false;
                         break;
@@ -196,7 +196,7 @@ class Search {
         // Initialize the suggestion variable as null
         $suggestion = null;
 
-        // --- NEW STEP: Check if a synonym matched at the top of the request ---
+        // Check if a synonym matched at the top of the request
         if ( ! empty( $active_synonym_matches ) ) {
             
             // Instantly pass the synonym array words to the suggestion tracking parameter

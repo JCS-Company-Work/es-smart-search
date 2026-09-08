@@ -146,8 +146,10 @@ class SearchMatcher {
             // Ensure the filter values are in array format.
             $values = is_array( $values ) ? $values : [ $values ];
         
-            // Normalize the filter values with search index method.
-            $values = array_filter( array_map( [ SearchNormalizer::class, 'normalise' ], $values ) );
+            // Preserve quantity-band syntax while normalising ordinary filter values.
+            $values = 'quantity' === $group
+                ? array_filter( array_map( static fn( $value ) => strtolower( trim( (string) $value ) ), $values ) )
+                : array_filter( array_map( [ SearchNormalizer::class, 'normalise' ], $values ) );
 
             // If the filter values are empty or the corresponding fields are not present, return false.
             if ( empty( $values ) || empty( $fields[ $group ] ) ) return false;
@@ -211,7 +213,8 @@ class SearchMatcher {
             $word_score = $this->calculate_exact_score( $word, $fields, $matched_fields );
             if ( $word_score > 0 ) {
                 $score += $word_score;
-                continue; // Exact match found! Skip to the next search word.
+                // Exact match found skip to the next search word.
+                continue;
             }
 
             // Hard exclusion rules (e.g., strict category filtering words)
