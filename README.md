@@ -26,7 +26,8 @@ three tabs:
 
 Weight settings are submitted as native arrays and stored in `wp_options` under
 `esss_weight_text` and `esss_weight_filters`. The search matcher uses the saved
-values and falls back to its built-in weights when an option is empty or invalid.
+values, including the canonical `size` field for dimensions, and falls back to
+its built-in weights when an option is empty or invalid.
 
 ## Documentation
 

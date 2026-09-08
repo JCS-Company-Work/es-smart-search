@@ -36,7 +36,14 @@ The browser sends completed-search metrics to this endpoint after results render
 
 ## Index
 
-The search index includes in-stock published `batch` posts. It is cached in a WordPress transient and rebuilt when a relevant batch, field, taxonomy, or stock value changes.
+The search index includes in-stock published `batch` posts. It is cached in the
+`esss_search_index_v3` WordPress transient and rebuilt when a relevant batch,
+field, taxonomy, or stock value changes.
+
+The index stores dimensions under the canonical `size` field. The source ACF
+field is `dimensions`; incoming filter requests using `dimensions` are mapped to
+`size` for compatibility. Category taxonomy terms are stored under `category`,
+while effect taxonomy terms are stored under `effect`.
 
 ## Ranking
 
@@ -57,6 +64,10 @@ field weight. The default text weights are:
 | `title`        | 50     |
 | `factory`      | 35     |
 
+Text weighting uses the same field keys as the index, including `size`. The
+`category` and `effect` fields remain separate because they come from separate
+taxonomies.
+
 The admin weighting screen can add or remove fields without code changes. Text
 weights are posted as `esss_weight_text[keys][]` and
 `esss_weight_text[values][]`; filter weights use the equivalent
@@ -69,13 +80,15 @@ Exact substring matches are checked first. When no exact match is found, fuzzy m
 
 The terms `floor`, `wall`, `outdoor`, and dimension patterns such as `60x60` are strict exclusions when they do not match a batch exactly. Structured filters must all match. `categories` is treated as `category`, `dimensions` as `size`, and `quantity` supports `sqm-min-max` and `sqm-min+` bands.
 
-PHP sorts matching batches by descending score. The browser uses that ranking to order the already-rendered parent cards.
+Every non-ignored query word must match exactly or through an allowed fuzzy
+match; this applies to single-word and multi-word searches. PHP sorts matching
+batches by descending score. The browser uses that ranking to order the
+already-rendered parent cards.
 
 ## Cache Invalidation
 
 `SearchIndex` stores the searchable batch index in the `esss_search_index_v3`
-transient for 30 days. The transient is deleted when a batch is saved or deleted,
-when relevant metadata or taxonomy terms change, when ACF saves a batch, and when
-WooCommerce changes stock status. The next request rebuilds the index from
-published batches whose stock is above the configured low-stock threshold and
-whose stock status is `instock`.
+transient for 30 days. Relevant post, metadata, taxonomy, ACF, and stock hooks
+call `rebuild()` so the transient is refreshed immediately. A cache miss also
+rebuilds the index from published batches whose stock is above the configured
+low-stock threshold and whose stock status is `instock`.

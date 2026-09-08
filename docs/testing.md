@@ -16,9 +16,10 @@ Run tests:
 composer test
 ```
 
-Current tests cover plugin registration and index invalidation hooks. SearchMatcher
-weighting, filter matching, reporting validation, and most REST response behavior
-still need focused PHP coverage.
+Current unit tests cover plugin registration, index rebuild hook registration,
+normalisation, matcher scoring and filters, dynamic weight sanitisation, and
+suggestions. WordPress-backed index construction, option persistence, reporting
+validation, and most REST response behavior belong in the integration suite.
 
 These tests do not load WordPress or connect to a database. Database-backed behaviour, including `Dictionary::rebuild()` and search reporting, belongs in the integration suite.
 
@@ -45,7 +46,10 @@ Add focused PHP tests for `SearchMatcher` covering:
 - permitted fuzzy fields, edit-distance limits, short-word rejection, and the fuzzy score penalty;
 - filter aliases, all-filter matching, and quantity bands such as `sqm-10-20` and `sqm-20+`;
 - query normalisation, especially `60x60`, `60 x 60`, and `600x600`;
+- canonical `size` weighting and the legacy `dimensions` filter alias;
+- separate `category` and `effect` indexed fields;
 - synonyms and misspellings, including `carrera` and `carrara`;
+- single-word and multi-word AND matching with exact and fuzzy terms;
 - reporting table creation and event validation.
 
 ## Browser Tests
