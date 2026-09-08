@@ -59,6 +59,7 @@ class SearchMatcher {
         $default_filters = [
             'colour'      => 70,
             'effect'      => 65,
+            'category'    => 65,
             'finish'      => 55,
             'size'        => 90,
             'dimensions'  => 90,
@@ -94,10 +95,7 @@ class SearchMatcher {
 
         // Loop over the active filters and check against our custom backend weights
         foreach ( $filters as $group => $values ) {
-            //$group = 'categories' === $group ? 'category' : $group;
-
-            // Map 'category' and 'categories' to 'effect' for consistency.
-            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
+            $group = 'categories' === $group ? 'category' : $group;
             
             if ( isset( $this->filter_weights[ $group ] ) ) {
                 $matched[ $group ] = $this->filter_weights[ $group ];
@@ -120,10 +118,7 @@ class SearchMatcher {
 
         // Loop over the active filters and collect their corresponding values for scoring.
         foreach ( $filters as $group => $values ) {
-            //$group = 'categories' === $group ? 'category' : $group;
-
-            // Map 'category' and 'categories' to 'effect' for consistency.
-            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
+            $group = 'categories' === $group ? 'category' : $group;
 
             $values = is_array( $values ) ? $values : [ $values ];
             $matched[ $group ] = implode( ', ', array_map( 'sanitize_text_field', $values ) ) . ' (filter)';
@@ -144,10 +139,7 @@ class SearchMatcher {
         foreach ( $filters as $group => $values ) {
 
             // Map 'categories' to 'category' for consistency.
-            //$group = 'categories' === $group ? 'category' : $group;
-            
-            // Map 'category' and 'categories' to 'effect' for consistency.
-            $group = in_array( $group, [ 'category', 'categories' ], true ) ? 'effect' : $group;
+            $group = 'categories' === $group ? 'category' : $group;
         
             // Map 'dimensions' to 'size' for consistency.
             $group = 'dimensions' === $group ? 'size' : $group;
