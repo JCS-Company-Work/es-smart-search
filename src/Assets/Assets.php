@@ -5,7 +5,7 @@ namespace EsSmartSearch\Assets;
 class Assets {
 
     /** @var string Holds the registered menu page hook */
-    private $settings_page_hook;
+    private $settings_page_hook = 'settings_page_es-smart-search';
 
     /**
      * Register scripts to be enqueued

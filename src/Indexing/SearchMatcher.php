@@ -32,7 +32,6 @@ class SearchMatcher {
             'usage'        => 80,
             'colour'       => 70,
             'effect'       => 65,
-            'category'     => 60,
             'finish'       => 55,
             'title'        => 50,
             'factory'      => 35,
@@ -59,7 +58,6 @@ class SearchMatcher {
         $default_filters = [
             'colour'      => 70,
             'effect'      => 65,
-            'category'    => 60,
             'finish'      => 55,
             'size'        => 90,
             'dimensions'  => 90,
