@@ -28,7 +28,7 @@ class SearchMatcher {
         // Hardcoded structural baseline fallbacks
         $default_weights = [
             'product_code' => 100,
-            'dimensions'   => 90,
+            'size'         => 90,
             'usage'        => 80,
             'colour'       => 70,
             'category'     => 65,
@@ -62,7 +62,6 @@ class SearchMatcher {
             'category'    => 65,
             'finish'      => 55,
             'size'        => 90,
-            'dimensions'  => 90,
             'usage'       => 80,
             'thickness'   => 55,
             'slip_rating' => 55,
