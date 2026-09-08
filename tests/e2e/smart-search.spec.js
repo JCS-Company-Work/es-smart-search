@@ -105,3 +105,120 @@ test(
     await expect(page).toHaveURL(/#textsearch=marble.*$/);
   },
 );
+
+test(
+  "Smart Search sends size filters using the canonical size key",
+  { tag: ["@critical", "@smart-search"] },
+  async ({ page, baseURL }) => {
+    await openSearchResults(page, baseURL);
+
+    const searchRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes("/es-smart-search/v1/search") &&
+        request.method() === "GET",
+    );
+
+    await page.route(/\/es-smart-search\/v1\/search(?:\?|$)/, (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          query: "",
+          matches: [],
+          count: 0,
+          ranking: [],
+          suggestion: null,
+          fallback: { type: "usage", terms: [] },
+        }),
+      }),
+    );
+
+    await page
+      .locator('fieldset[data-filter-group="size"] .control')
+      .first()
+      .evaluate((button) => button.click());
+
+    const filters = JSON.parse(
+      new URL((await searchRequest).url()).searchParams.get("filters"),
+    );
+    expect(filters).toHaveProperty("size");
+    expect(filters).not.toHaveProperty("dimensions");
+  },
+);
+
+test(
+  "Smart Search sends multiple active filters together",
+  { tag: ["@critical", "@smart-search"] },
+  async ({ page, baseURL }) => {
+    await openSearchResults(page, baseURL);
+
+    await page.route(/\/es-smart-search\/v1\/search(?:\?|$)/, (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          query: "",
+          matches: [],
+          count: 0,
+          ranking: [],
+          suggestion: null,
+          fallback: { type: "usage", terms: [] },
+        }),
+      }),
+    );
+
+    const sizeRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes("/es-smart-search/v1/search") &&
+        request.method() === "GET",
+    );
+
+    await page
+      .locator('fieldset[data-filter-group="size"] .control')
+      .first()
+      .evaluate((button) => button.click());
+
+    await sizeRequest;
+    const categoryRequest = page.waitForRequest(
+      (request) =>
+        request.url().includes("/es-smart-search/v1/search") &&
+        request.method() === "GET",
+    );
+    await page
+      .locator('fieldset[data-filter-group="category"] .control')
+      .first()
+      .evaluate((button) => button.click());
+
+    const filters = JSON.parse(
+      new URL((await categoryRequest).url()).searchParams.get("filters"),
+    );
+    expect(Object.keys(filters)).toEqual(
+      expect.arrayContaining(["size", "category"]),
+    );
+  },
+);
+
+test(
+  "Smart Search tolerates a null fallback payload",
+  { tag: ["@critical", "@smart-search"] },
+  async ({ page, baseURL }) => {
+    await openSearchResults(page, baseURL);
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error));
+
+    await page.route(/\/es-smart-search\/v1\/search(?:\?|$)/, (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          query: "not-a-match",
+          matches: [],
+          count: 0,
+          ranking: [],
+          suggestion: null,
+          fallback: null,
+        }),
+      }),
+    );
+
+    await page.locator(".live-filter").fill("not-a-match");
+    await expect.poll(() => pageErrors.length).toBe(0);
+  },
+);

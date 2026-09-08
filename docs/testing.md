@@ -37,6 +37,15 @@ composer test:integration
 
 The command refuses to start unless `ESSS_INTEGRATION_TESTS=1` is set by the Composer script, `WP_TESTS_DIR` points to a WordPress test-library installation, and `ESSS_TEST_DB_NAME` names a non-local database. Never point the test configuration at the site's `local` database.
 
+Current integration tests cover:
+
+- `DictionaryIntegrationTest`: rebuilds the suggestion vocabulary from a published, in-stock `batch` post, metadata, and an effect taxonomy term;
+- `SearchMatcherOptionsIntegrationTest`: verifies saved `wp_options` weights, canonical `size` scoring, and the `dimensions` filter alias.
+
+The search-index builder also depends on WooCommerce products and ACF fields. Full
+`SearchIndex::rebuild()` coverage should run in an environment where those
+plugins are loaded into the WordPress test bootstrap.
+
 ## Tests To Add
 
 Add focused PHP tests for `SearchMatcher` covering:
@@ -69,3 +78,6 @@ Current browser coverage verifies:
 
 - Smart Search renders an API match, updates the URL, and sends the completed-search report payload;
 - zero-result searches display and apply a suggested replacement;
+- size filters are sent with the canonical `size` key rather than `dimensions`;
+- multiple active filters are sent together;
+- a `null` fallback response does not cause a browser exception.
