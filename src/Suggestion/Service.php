@@ -184,6 +184,8 @@ class Service {
      * Determine the max allowed distance based on the word length. 
      * Under 3 characters, no distance is allowed. For short words, 
      * use the short distance setting. For longer words, use the long distance setting.
+     * Both settings are incremented by one to allow suggestions to take place
+     * after fuzzy matching gives no results
      *
      * @param string $word
      * @return integer
@@ -196,8 +198,8 @@ class Service {
         // Return word length value based on the defined distance settings.
         return match ( true ) {
             $word_length <= 3 => 0,
-            $word_length <= 5 => $this->max_distance_short,
-            default           => $this->max_distance_long,
+            $word_length <= 5 => $this->max_distance_short + 1,
+            default           => $this->max_distance_long + 1,
         };
     }
 }
