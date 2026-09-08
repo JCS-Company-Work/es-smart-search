@@ -154,7 +154,8 @@ class Settings {
             'usage' => 'Usage',
             'thickness' => 'Thickness',
             'quantity' => 'Quantity',
-            'discount' => 'Discount'
+            'discount' => 'Discount',
+            'dimensions' => 'Format',
         ];
 
         $target_cpt = 'batch'; 

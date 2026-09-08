@@ -123,13 +123,12 @@ class ESSS_Admin {
           key !== "finish" &&
           key !== "effect"
         ) {
-          // Keep your valid overlapping text attributes, but screen out strictly numeric ones
+          // Keep valid overlapping text attributes, but screen out strictly numeric ones
           if (
             key === "thickness" ||
             key === "slip_rating" ||
             key === "discount" ||
-            key === "quantity" ||
-            key === "dimensions"
+            key === "quantity"
           ) {
             continue;
           }
