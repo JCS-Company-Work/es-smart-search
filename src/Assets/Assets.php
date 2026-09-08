@@ -4,6 +4,9 @@ namespace EsSmartSearch\Assets;
 
 class Assets {
 
+    /** @var string Holds the registered menu page hook */
+    private $settings_page_hook;
+
     /**
      * Register scripts to be enqueued
      *
@@ -15,7 +18,19 @@ class Assets {
         add_filter( 'script_loader_tag', [ $this, 'script_loader_tag' ], 10, 2 );
     }
 
-    public function enqueue_admin_assets() {
+    /**
+     * Enqueue admin scripts and styles for the plugin settings page.
+     *
+     * @param string $hook The current admin page hook.
+     * @return void
+     */
+    public function enqueue_admin_assets( $hook ) {
+
+        // Exit early if we're not on the plugin's settings page.
+        if ( $hook !== $this->settings_page_hook ) {
+            return;
+        }
+
         wp_enqueue_script('es-smart-search-admin', ESSS_URL . 'assets/js/admin/Admin.js', [], ESSS_VERSION, true);
         wp_enqueue_style('es-smart-search-admin', ESSS_URL . 'assets/css/admin.css', [], ESSS_VERSION);
     }
