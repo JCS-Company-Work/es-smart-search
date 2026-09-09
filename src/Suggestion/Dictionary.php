@@ -20,7 +20,7 @@ class Dictionary {
         'finish',
         'effect',
         'category',
-        'factory',
+        'factory_name',
         'usage'
     ];
 
@@ -54,8 +54,8 @@ class Dictionary {
      */
     public static function register(): void {
 
-        // Update dictionary on product save
-        add_action( 'save_post_product', [ self::class, 'handle_product_save' ], 20, 3 );
+        // Update dictionary when an indexed batch is saved.
+        add_action( 'save_post_batch', [ self::class, 'handle_product_save' ], 20, 3 );
 
         // Update manual additions and ignored in wp_options when they are created/updated and rebuild the dictionary
         add_action( 'add_option_esss_manual_additions',    [ self::class, 'handle_options_save' ], 20, 0 );
@@ -189,7 +189,7 @@ class Dictionary {
             }
         }
 
-                // Merge manual additions directly into the unique pool
+        // Merge manual additions directly into the unique pool
         if ( ! empty( $this->manual_additions ) ) {
             foreach ( $this->manual_additions as $word ) {
                 $clean_word = preg_replace( '/[^\w\s]/u', '', SearchNormalizer::normalise( $word ) );

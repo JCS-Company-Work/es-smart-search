@@ -65,6 +65,7 @@ class SearchMatcher {
             'usage'       => 80,
             'thickness'   => 55,
             'slip_rating' => 55,
+            'factory_name' => 50,
             'discount'    => 40,
             'quantity'    => 40,
         ];

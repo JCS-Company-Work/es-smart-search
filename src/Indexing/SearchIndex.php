@@ -119,17 +119,17 @@ final class SearchIndex {
                     'finish'    => [ SearchNormalizer::normalise( $fields['finish'] ?? '' ) ],
                     'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
                     'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
-                    'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'], $terms, $batch_id ) ),
+                    'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'], $terms ) ),
                     'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) ],
                     'slip_rating' => [ SearchNormalizer::normalise( $fields['slip_rating'] ?? '' ) ],
                     'discount'  => [ SearchNormalizer::normalise( $fields['discount_percentage'] ?? '' ) ],
                     'quantity'  => [ $sqm ],
-                    'factory'   => [ SearchNormalizer::normalise( $fields['factory_name'] ?? '' ) ],
+                    'factory_name'   => [ SearchNormalizer::normalise( $fields['factory_name'] ?? '' ) ],
                     'product_code' => [ SearchNormalizer::normalise( $fields['product_code'] ?? '' ) ],
                 ],
             ];
         }
-
+error_log( 'Searchable batches built: ' . print_r( $batches, true ) );
         return $batches;
     }
 

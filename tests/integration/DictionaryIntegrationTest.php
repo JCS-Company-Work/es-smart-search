@@ -35,6 +35,7 @@ final class DictionaryIntegrationTest extends WP_UnitTestCase {
         add_post_meta( $post_id, '_stock', 5 );
         add_post_meta( $post_id, 'colour', 'Carrara Marble' );
         add_post_meta( $post_id, 'finish', 'Honed' );
+        add_post_meta( $post_id, 'factory_name', 'Ariostea' );
         add_post_meta( $post_id, 'effect', [ 'Ivory White', 'Polished' ] );
         wp_set_post_terms( $post_id, [ 'marble' ], 'effect' );
 
@@ -42,7 +43,7 @@ final class DictionaryIntegrationTest extends WP_UnitTestCase {
 
         self::assertTrue( $dictionary->rebuild() );
         self::assertEqualsCanonicalizing(
-            [ 'carrara', 'marble', 'honed', 'ivory', 'white', 'polished' ],
+            [ 'carrara', 'marble', 'honed', 'ariostea', 'ivory', 'white', 'polished' ],
             $dictionary->get_terms()
         );
     }
