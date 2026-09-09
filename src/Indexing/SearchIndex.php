@@ -129,7 +129,7 @@ final class SearchIndex {
                 ],
             ];
         }
-error_log( 'Searchable batches built: ' . print_r( $batches, true ) );
+
         return $batches;
     }
 

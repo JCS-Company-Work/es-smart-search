@@ -177,14 +177,17 @@ class Dictionary {
             }
         }
 
-        // Include terms from the 'effects' taxonomy in the dictionary.
-        $effect_terms = get_terms( [
-            'taxonomy'   => 'effect', 
+        // Include terms from the 'effects' and 'category' taxonomies in the dictionary.
+        $taxonomies = ['effect','category'];
+        
+        $effect_cat_terms = get_terms( [
+            'taxonomy'   => $taxonomies, 
             'hide_empty' => true,
         ] );
 
-        if ( ! is_wp_error( $effect_terms ) && ! empty( $effect_terms ) ) {
-            foreach ( $effect_terms as $term ) {
+        // If terms are found, extract their names into the unique words pool.
+        if ( ! is_wp_error( $effect_cat_terms ) && ! empty( $effect_cat_terms ) ) {
+            foreach ( $effect_cat_terms as $term ) {
                 $this->extract_clean_words( $term->name, $unique_words );
             }
         }
