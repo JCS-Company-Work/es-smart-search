@@ -119,7 +119,7 @@ final class SearchIndex {
                     'finish'    => [ SearchNormalizer::normalise( $fields['finish'] ?? '' ) ],
                     'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
                     'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
-                    'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'] ?? '' ) ),
+                    'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'], $terms, $batch_id ) ),
                     'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) ],
                     'slip_rating' => [ SearchNormalizer::normalise( $fields['slip_rating'] ?? '' ) ],
                     'discount'  => [ SearchNormalizer::normalise( $fields['discount_percentage'] ?? '' ) ],
@@ -179,22 +179,46 @@ final class SearchIndex {
     /**
      * Get the usage labels for the given finish as an array.
      *
-     * @param string $finish
+     * @param string $finish The finish value to evaluate for usage types.
+     * @param array $terms Optional array of terms to consider for usage types like slabs/bathroom that come from categories.
      * @return array Array of usage labels derived from the controlled finish rules.
      */
-    private function get_usage_values( $finish ) {
+    private function get_usage_values( $finish, $terms = [] ) {
+
+        // Array to hold final usage data
+        $usage = [];
+
         $usage_by_finish = [
             'floor'        => [ 'natural', 'structured' ],
             'wall'         => [ 'natural', 'polished', 'honed' ],
             'wall & floor' => [ 'natural' ],
             'outdoor'      => [ 'grip' ],
         ];
-        $finish         = strtolower( trim( (string) $finish ) );
-        $usage          = [];
+
+        // Normalize the finish value for comparison
+        $finish = strtolower( trim( (string) $finish ) );
 
         foreach ( $usage_by_finish as $label => $finishes ) {
             if ( in_array( $finish, $finishes, true ) ) {
                 $usage[] = $label;
+            }
+        }
+
+        // If terms is set, check for additional usage types based on the terms
+        if( ! empty( $terms ) && is_array( $terms ) ) {
+
+            // Array of terms to match for additional usage types
+            $additional_usage_terms = ['slabs', 'bathroom', 'kitchen', 'living room'];
+
+            // Loop through the additional usage terms and check if they are present in the terms array
+            foreach ( $additional_usage_terms as $additional_term ) {
+                foreach ( $terms as $term ) {
+
+                    // Search is partial word and case insensitive
+                    if ( stripos( $term, $additional_term ) !== false ) {
+                        $usage[] = $additional_term;
+                    }
+                }
             }
         }
 
