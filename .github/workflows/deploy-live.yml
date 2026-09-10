@@ -1,9 +1,12 @@
 name: Deploy to Live
 
 on:
-    push:
-        branches:
-            - main
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: "Branch, tag or commit to deploy"
+                required: true
+                default: "main"
 
 jobs:
     deploy:
