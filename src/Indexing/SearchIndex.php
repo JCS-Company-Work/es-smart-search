@@ -108,6 +108,9 @@ final class SearchIndex {
                 is_wp_error( $terms ) ? '' : implode( ' ', $terms ),
             ];
 
+            // Get both formatted size (e.g. 600x600) and single dimension (e.g. 600) values for the product.
+            $size_values = $this->get_size_values( $fields['dimensions'] ?? '' );
+
             // Add the searchable batch data to the array, including normalized text and relevant fields.
             $batches[] = [
                 'id'     => (int) $batch_id,
@@ -117,7 +120,8 @@ final class SearchIndex {
                     'colour'    => [ SearchNormalizer::normalise( $fields['colour'] ?? '' ) ],
                     'effect' => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $effects ) ? [] : $effects),
                     'finish'    => [ SearchNormalizer::normalise( $fields['finish'] ?? '' ) ],
-                    'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
+                    'size'      => $size_values['formatted'] ?? [],
+                    'single_sizes' => $size_values['single_sizes'] ?? [],
                     'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
                     'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'], $terms ) ),
                     'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) . 'mm' ],
@@ -129,7 +133,7 @@ final class SearchIndex {
                 ],
             ];
         }
-error_log( print_r( $batches, true ) );
+
         return $batches;
     }
 
@@ -151,7 +155,7 @@ error_log( print_r( $batches, true ) );
      * @param array $dimensions
      * @return array The array of normalized size values.
      */
-    private function get_size_values( $dimensions ) {
+    private function get_size_values( $dimensions ): array {
 
         // Normalize the dimensions and prepare the size values array.
         $size = SearchNormalizer::normalise( $dimensions );
@@ -162,8 +166,19 @@ error_log( print_r( $batches, true ) );
             $values[] = ( (int) $matches[1] / 10 ) . 'x' . ( (int) $matches[2] / 10 );
         }
 
-        // Return the unique normalized size values.
-        return array_values( array_unique( $values ) );
+        // Extract individual numbers from all combinations in $values
+        $single_sizes_raw = [];
+        foreach ( $values as $value ) {
+            foreach ( explode( 'x', $value ) as $part ) {
+                $single_sizes_raw[] = $part . 'mm';
+            }
+        }
+
+        // Return the unique normalized size values. Single sizes with 'mm' appended.
+        return [
+            'formatted'    => array_values( array_unique( $values ) ),
+            'single_sizes' => array_values( array_unique( $single_sizes_raw ) ),
+        ];
     }
 
     /**

@@ -29,6 +29,7 @@ class SearchMatcher {
         $default_weights = [
             'product_code' => 100,
             'size'         => 90,
+            'single_sizes' => 85,
             'usage'        => 80,
             'colour'       => 70,
             'category'     => 65,
@@ -198,8 +199,13 @@ class SearchMatcher {
      */
     public function score_batch( string $query, array $batch, array &$matched_fields = [] ): int {
         
-        // Normalise and split the query into individual words
+        // Normlaise query
         $query = SearchNormalizer::normalise( $query );
+
+        // Remove spaces before "mm" in measurements (e.g., "10 mm" becomes "10mm")
+        $query = preg_replace( '/(\d+)\s+mm\b/', '$1mm', $query );
+        
+        // Split the query into individual words for further processing.
         $words = array_filter( preg_split( '/\s+/', $query ) );
         
         $score = 0;
@@ -257,8 +263,12 @@ class SearchMatcher {
             }
 
             foreach ( $fields[ $group ] as $value ) {
-                // Check if the search word exists inside the field text
-                if ( '' !== $value && false !== strpos( $value, $word ) ) {
+                // Normalize both the field value and the search word to lowercase for case-insensitive comparison
+                $matches = in_array( $group, [ 'size', 'single_sizes', 'thickness' ], true )
+                    ? $value === $word
+                    : '' !== $value && false !== strpos( $value, $word );
+
+                if ( $matches ) {
                     // If a word matches multiple fields, we keep the highest scoring group weight
                     $word_score = max( $word_score, $weight );
                     $matched_fields[ $group ] = $weight;

@@ -147,22 +147,6 @@ class Search {
                     }
                 } );
 
-                // Combine the post title and flattened text properties into a single searchable text block
-                $searchable_string = strtolower( $batch['post_title'] . ' ' . implode( ' ', $field_strings ) );
-                // $matches_all_words = true;
-
-                // foreach ( $query_words as $word ) {
-                //     // Only match items that contain all query words
-                //     if ( false === strpos( $searchable_string, $word ) ) {
-                //         $matches_all_words = false;
-                //         break;
-                //     }
-                // }
-
-                // // Drop the item safely if it fails the cross-field AND check
-                // if ( ! $matches_all_words ) {
-                //     continue;
-                // }
             }
 
             // Get the matched fields for the current batch based on the active filters.

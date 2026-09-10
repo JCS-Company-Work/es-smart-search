@@ -156,6 +156,7 @@ class Settings {
             'quantity' => 'Quantity',
             'discount' => 'Discount',
             'size' => 'Format',
+            'single_sizes' => 'Single Sizes',
         ];
 
         $target_cpt = 'batch'; 
