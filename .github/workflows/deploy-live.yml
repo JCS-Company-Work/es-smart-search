@@ -37,7 +37,7 @@ jobs:
                     --exclude=".DS_Store" \
                     --exclude="vendor/" \
                     --exclude="tests/" \
-                    --exclude="playwright.config.js" \
+                    --exclude="playwright.config.mjs" \
                     --exclude="phpunit.xml.dist" \
                     --exclude="phpunit.integration.xml.dist" \
                     --exclude=".gitignore" \
