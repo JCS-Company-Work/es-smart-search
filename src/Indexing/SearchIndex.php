@@ -120,7 +120,7 @@ final class SearchIndex {
                     'size'      => $this->get_size_values( $fields['dimensions'] ?? '' ),
                     'category'  => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $terms ) ? [] : $terms ),
                     'usage'     => array_map( [ SearchNormalizer::class, 'normalise' ], $this->get_usage_values( $fields['finish'], $terms ) ),
-                    'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) ],
+                    'thickness' => [ SearchNormalizer::normalise( $fields['thickness'] ?? '' ) . 'mm' ],
                     'slip_rating' => [ SearchNormalizer::normalise( $fields['slip_rating'] ?? '' ) ],
                     'discount'  => [ SearchNormalizer::normalise( $fields['discount_percentage'] ?? '' ) ],
                     'quantity'  => [ $sqm ],
@@ -129,7 +129,7 @@ final class SearchIndex {
                 ],
             ];
         }
-
+error_log( print_r( $batches, true ) );
         return $batches;
     }
 

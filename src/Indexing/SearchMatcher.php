@@ -34,6 +34,7 @@ class SearchMatcher {
             'category'     => 65,
             'effect'       => 65,
             'finish'       => 55,
+            'thickness'    => 55,
             'title'        => 50,
             'factory'      => 35,
         ];

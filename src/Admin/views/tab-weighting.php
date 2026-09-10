@@ -17,6 +17,7 @@ if ( ! is_array( $filter_weights ) ) {
 arsort( $filter_weights );
 
 $available_fields = $this->get_all_available_fields();
+error_log( 'available_fields: ' . print_r( $available_fields, true ) );
 $json_fields      = esc_attr( wp_json_encode( $available_fields ) );
 ?>
 
