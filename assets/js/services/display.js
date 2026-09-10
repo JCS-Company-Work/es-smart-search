@@ -269,6 +269,12 @@ export class DisplayService {
       product.classList.remove("es-smart-search-hidden");
     });
 
+    // Reset the visible count to the total number of products
+    this.app.paginationService.resetToAllProducts();
+    this.app.paginationService.renderCurrentPage();
+    this.app.paginationService.updatePaginationCount();
+    this.app.paginationService.addPaginationButtons();
+
     // Hide the "no results" message if it is currently displayed
     if (this.app.noResults) this.app.noResults.style.display = "none";
 

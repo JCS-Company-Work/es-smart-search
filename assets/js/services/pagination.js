@@ -162,11 +162,15 @@ export class PaginationService {
     const totalPages = Object.keys(this.app.state.pagination.pages).length;
     const currentPage = this.app.state.page;
 
-    if (!container || totalPages <= 1) {
+    if (!container) {
       return;
     }
 
     container.innerHTML = "";
+
+    if (totalPages <= 1) {
+      return;
+    }
 
     container.appendChild(
       this._createPaginationButton("«", "prev", "mixitup-control-prev"),
