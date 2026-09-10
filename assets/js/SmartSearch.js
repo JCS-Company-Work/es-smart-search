@@ -148,7 +148,9 @@ export default class SmartSearch {
 
     // Render the initial query display based on the current state
     this.paginationService.resetToAllProducts();
+    this.paginationService.renderCurrentPage();
     this.paginationService.updatePaginationCount();
+    this.paginationService.addPaginationButtons();
 
     // If debugging is enabled, log the initial state and endpoint
     if (window.ESSS.debug) {
