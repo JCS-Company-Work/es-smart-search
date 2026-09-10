@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ESSS_VERSION', '0.1.2' );
+define( 'ESSS_VERSION', '0.1.3' );
 define( 'ESSS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ESSS_URL', plugin_dir_url( __FILE__ ) );
 define( 'ESSS_INDEX_TRANSIENT', 'esss_search_index_v3' );
