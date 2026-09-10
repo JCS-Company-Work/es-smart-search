@@ -1,51 +1,51 @@
 name: Deploy to Live
 
 on:
-    workflow_dispatch:
-        inputs:
-            ref:
-                description: "Branch, tag or commit to deploy"
-                required: true
-                default: "main"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Push to deploy to production"
+        required: true
+        default: "main"
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Configure SSH
-              run: |
-                  mkdir -p ~/.ssh
-                  echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/github_actions_deploy_key
-                  chmod 600 ~/.ssh/github_actions_deploy_key
-                  ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/github_actions_deploy_key
+          chmod 600 ~/.ssh/github_actions_deploy_key
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-            - name: Deploy to Live
-              run: |
-                  rsync -azc --delete \
-                    --omit-dir-times \
-                    --no-times \
-                    --no-perms \
-                    --no-owner \
-                    --no-group \
-                    --exclude=".git" \
-                    --exclude=".github" \
-                    --exclude=".env" \
-                    --exclude=".DS_Store" \
-                    --exclude="vendor/" \
-                    --exclude="tests/" \
-                    --exclude="playwright.config.mjs" \
-                    --exclude="phpunit.xml.dist" \
-                    --exclude="phpunit.integration.xml.dist" \
-                    --exclude=".gitignore" \
-                    --exclude="README.md" \
-                    --exclude=".phpunit.result.cache" \
-                    -e "ssh -i ~/.ssh/github_actions_deploy_key" \
-                    ./ \
-                    ${{ secrets.PT_SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.LIVE_DEPLOY_PATH }}
+      - name: Deploy to Live
+        run: |
+          rsync -azc --delete \
+            --omit-dir-times \
+            --no-times \
+            --no-perms \
+            --no-owner \
+            --no-group \
+            --exclude=".git" \
+            --exclude=".github" \
+            --exclude=".env" \
+            --exclude=".DS_Store" \
+            --exclude="vendor/" \
+            --exclude="tests/" \
+            --exclude="playwright.config.mjs" \
+            --exclude="phpunit.xml.dist" \
+            --exclude="phpunit.integration.xml.dist" \
+            --exclude=".gitignore" \
+            --exclude="README.md" \
+            --exclude=".phpunit.result.cache" \
+            -e "ssh -i ~/.ssh/github_actions_deploy_key" \
+            ./ \
+            ${{ secrets.PT_SSH_USER }}@${{ secrets.SSH_HOST }}:${{ vars.LIVE_DEPLOY_PATH }}
 
-            - name: Complete
-              run: echo "Live deployment complete."
+      - name: Complete
+        run: echo "Live deployment complete."
