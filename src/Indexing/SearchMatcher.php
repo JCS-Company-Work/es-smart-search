@@ -27,6 +27,7 @@ class SearchMatcher {
     private function load_search_weights(): void {
         // Hardcoded structural baseline fallbacks
         $default_weights = [
+            'batch_id'     => 100,
             'product_code' => 100,
             'size'         => 90,
             'single_sizes' => 85,
@@ -261,9 +262,10 @@ class SearchMatcher {
             if ( empty( $fields[ $group ] ) ) {
                 continue;
             }
-
+error_log( 'Checking group: ' . $group );
             foreach ( $fields[ $group ] as $value ) {
-                // Normalize both the field value and the search word to lowercase for case-insensitive comparison
+
+                // If the field is one of the strictly matched groups (size, single_sizes, thickness), we require an exact match.
                 $matches = in_array( $group, [ 'size', 'single_sizes', 'thickness' ], true )
                     ? $value === $word
                     : '' !== $value && false !== strpos( $value, $word );

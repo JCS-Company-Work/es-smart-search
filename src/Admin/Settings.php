@@ -148,6 +148,7 @@ class Settings {
      */
     private function get_all_available_fields(): array {
         $fields = [
+            'batch_id' => 'Batch ID',
             'category' => 'Category',
             'effect' => 'Effect',
             'title' => 'Post Title',

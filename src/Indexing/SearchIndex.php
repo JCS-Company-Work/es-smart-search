@@ -116,6 +116,7 @@ final class SearchIndex {
                 'id'     => (int) $batch_id,
                 'text'   => SearchNormalizer::normalise( implode( ' ', $values ) ),
                 'fields' => [
+                    'batch_id'   => [ SearchNormalizer::normalise( (string) $batch_id ) ],
                     'title'      => [ SearchNormalizer::normalise( $product->get_name() ), SearchNormalizer::normalise( get_post_field( 'post_title', $batch_id ) ) ],
                     'colour'    => [ SearchNormalizer::normalise( $fields['colour'] ?? '' ) ],
                     'effect' => array_map( [ SearchNormalizer::class, 'normalise' ], is_wp_error( $effects ) ? [] : $effects),
