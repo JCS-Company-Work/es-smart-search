@@ -10,9 +10,69 @@ export class FilterService {
   bindFilters() {
     // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
     document
-      .querySelectorAll("fieldset[data-filter-group] .control")
+      .querySelectorAll("#accordion fieldset[data-filter-group] .control")
       .forEach((button) => {
         button.addEventListener("click", () => this.handleFilterClick(button));
+      });
+  }
+
+  /**
+   * Bind click events to the sort dropdown and handle its state updates.
+   */
+  bindSortDropdown() {
+    const dropdown = document.querySelector(
+      'fieldset[data-filter-group="sorting"] .dropdown',
+    );
+    console.log(dropdown);
+    if (!dropdown) return;
+
+    dropdown.addEventListener("click", (event) => {
+      // Find the closest dropdown menu option that was clicked
+      const option = event.target.closest(".dropdown-menu li");
+
+      // If an option within the dropdown menu is clicked, update the sort label and close the dropdown
+      if (option) {
+        // Update the sort label to reflect the selected option
+        dropdown.querySelector(".sort-label").textContent =
+          option.textContent.trim();
+
+        // Close the dropdown after selecting an option
+        dropdown.classList.remove("active");
+
+        return;
+      }
+
+      // If the click was not on a dropdown menu option, check if it was on the select element to toggle the dropdown
+      if (event.target.closest(".select")) {
+        dropdown.classList.toggle("active");
+      }
+    });
+
+    dropdown.addEventListener("focusout", () => {
+      dropdown.classList.remove("active");
+    });
+  }
+
+  /**
+   * Bind click events to sorting controls and handle sort state updates.
+   */
+  bindSorting() {
+    document
+      .querySelectorAll("fieldset[data-filter-group='sorting'] .control-sort")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          // Extract the sort key and direction from the clicked button's dataset
+          const [key, direction] = button.dataset.sort.split(":");
+
+          // Update the sort state in the main app instance
+          this.app.state.sort = {
+            key,
+            direction,
+          };
+
+          // Sort the current products based on the selected attribute
+          this.app.displayService.sortCurrentProducts();
+        });
       });
   }
 

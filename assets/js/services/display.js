@@ -164,7 +164,7 @@ export class DisplayService {
 
     // Get all product list items (li elements) that are direct children of the product list
     const products = Array.from(
-      this.app.productList.querySelectorAll(":scope > li"),
+      this.app.productList.querySelectorAll(":scope > li:not(.gap)"),
     );
 
     // Get all product list items (li elements) that are direct children of the product list
@@ -177,43 +177,7 @@ export class DisplayService {
     this.app.paginationService.paginateMatchingProducts(matchingParents);
 
     // Sort the product cards based on their rank in the API results and their original order
-    products.sort((left, right) => {
-      // Extract the product IDs for the left and right product cards for ranking comparison
-      const leftIds = (this.app.helpers.getProductIds(left) || []).map(Number);
-      const rightIds = (this.app.helpers.getProductIds(right) || []).map(
-        Number,
-      );
-
-      // Handle empty arrays cleanly by defaulting to MAX_SAFE_INTEGER instead of Infinity
-      const leftRank =
-        leftIds.length > 0
-          ? Math.min(
-              ...leftIds.map((id) =>
-                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
-              ),
-            )
-          : Number.MAX_SAFE_INTEGER;
-
-      const rightRank =
-        rightIds.length > 0
-          ? Math.min(
-              ...rightIds.map((id) =>
-                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
-              ),
-            )
-          : Number.MAX_SAFE_INTEGER;
-
-      // If the ranks are different, sort by your API ranking scores accurately
-      if (leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
-
-      // If neither product has a scored rank, maintain original template DOM ordering configurations
-      return (
-        this.app.originalProductOrder.indexOf(left) -
-        this.app.originalProductOrder.indexOf(right)
-      );
-    });
+    this.sortProducts(products, rankById);
 
     // Append the sorted product cards back to the product list in the new order
     products.forEach((product) => this.app.productList.appendChild(product));
@@ -255,6 +219,140 @@ export class DisplayService {
   }
 
   /**
+   * Sort products based on the current sort state or search ranking.
+   * @param {array<HTMLLIElement>} products The list of product elements to sort.
+   * @param {Map<number, number>} rankById A map of product IDs to their search ranking.
+   * @returns {array<HTMLLIElement>} The sorted list of product elements.
+   */
+  sortProducts(products, rankById) {
+    // If a sort state is defined, sort by the selected attribute first. Otherwise, sort by search ranking.
+    if (this.app.state.sort) {
+      return this.sortBySelectedAttribute(products, this.app.state.sort);
+    }
+
+    // If no sort state is defined, fall back to sorting by search ranking.
+    return this.sortBySearchRanking(products, rankById);
+  }
+
+  /**
+   * Sort products based on the selected attribute and direction.
+   * @param {array<HTMLLIElement>} products The list of product elements to sort.
+   * @param {{key: string, direction: string}} sortState The current sort state containing the key and direction.
+   * @returns {array<HTMLLIElement>} The sorted list of product elements.
+   */
+  sortBySelectedAttribute(products, sortState) {
+    // Convert the sort key from kebab-case to camelCase to match the dataset property names.
+    const dataKey = sortState.key.replace(/-([a-z])/g, (_, letter) =>
+      letter.toUpperCase(),
+    );
+
+    return products.sort((left, right) => {
+      // Extract the values for the left and right products based on the selected sort attribute.
+      const leftValue = Number(left.dataset[dataKey]);
+      const rightValue = Number(right.dataset[dataKey]);
+      console.log(leftValue, rightValue);
+
+      const safeLeft = Number.isFinite(leftValue)
+        ? leftValue
+        : Number.POSITIVE_INFINITY;
+      const safeRight = Number.isFinite(rightValue)
+        ? rightValue
+        : Number.POSITIVE_INFINITY;
+
+      // Compare the safe values based on the sort direction.
+      return sortState.direction === "asc"
+        ? safeLeft - safeRight
+        : safeRight - safeLeft;
+    });
+  }
+
+  /**
+   * Sort the currently displayed products based on the selected attribute and direction.
+   */
+  sortCurrentProducts() {
+    const products = Array.from(
+      this.app.productList.querySelectorAll(":scope > li:not(.gap)"),
+    );
+
+    this.sortBySelectedAttribute(products, this.app.state.sort);
+
+    products.forEach((product) => {
+      this.app.productList.appendChild(product);
+    });
+
+    const sortedMatchingParents = products.filter((product) =>
+      this.app.parentProducts.includes(product),
+    );
+
+    this.app.paginationService.paginateMatchingProducts(sortedMatchingParents);
+    this.app.paginationService.renderCurrentPage();
+    this.app.paginationService.addPaginationButtons();
+    this.app.paginationService.updatePaginationCount();
+  }
+
+  /**
+   * Sort products based on their search ranking.
+   * @param {array<HTMLLIElement>} products The list of product elements to sort.
+   * @param {Map<number, number>} rankById A map containing the search ranking for each product ID.
+   * @returns {array<HTMLLIElement>} The sorted list of product elements.
+   */
+  sortBySearchRanking(products, rankById) {
+    // Sort the products based on their search ranking, using the provided rankById map.
+    return products.sort((left, right) => {
+      const leftIds = (this.app.helpers.getProductIds(left) || []).map(Number);
+      const rightIds = (this.app.helpers.getProductIds(right) || []).map(
+        Number,
+      );
+
+      // Determine the search ranking for the left and right products.
+      const leftRank =
+        leftIds.length > 0
+          ? Math.min(
+              ...leftIds.map((id) =>
+                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
+              ),
+            )
+          : Number.MAX_SAFE_INTEGER;
+
+      // Determine the search ranking for the right product.
+      const rightRank =
+        rightIds.length > 0
+          ? Math.min(
+              ...rightIds.map((id) =>
+                rankById.has(id) ? rankById.get(id) : Number.MAX_SAFE_INTEGER,
+              ),
+            )
+          : Number.MAX_SAFE_INTEGER;
+
+      // If the search rankings are different, sort based on the ranking first.
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+
+      // If the search rankings are the same, fall back to the original product order.
+      return (
+        this.app.originalProductOrder.indexOf(left) -
+        this.app.originalProductOrder.indexOf(right)
+      );
+    });
+  }
+
+  /**
+   * Restore the products to the order they were in when initially loaded.
+   * This is used when resetting the product list to its original state.
+   */
+  restoreProductsInSelectedOrder() {
+    // Create a copy of the original product order to work with.
+    const products = [...this.app.originalProductOrder];
+
+    // Sort the copied products array based on the original product order.
+    this.sortProducts(products, new Map());
+
+    // Append the sorted products back to the product list in the correct order.
+    products.forEach((product) => this.app.productList.appendChild(product));
+  }
+
+  /**
    * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
    * This is called when the search query and filters are cleared, allowing the user to see all products again.
    */
@@ -265,9 +363,7 @@ export class DisplayService {
     );
 
     // Remove the "es-smart-search-hidden" class from all products to make them visible again
-    this.app.originalProductOrder.forEach((product) => {
-      product.classList.remove("es-smart-search-hidden");
-    });
+    this.restoreProductsInSelectedOrder();
 
     // Reset the visible count to the total number of products
     this.app.paginationService.resetToAllProducts();
@@ -280,5 +376,19 @@ export class DisplayService {
 
     // Show the stats element if it is currently hidden
     if (this.app.stats) this.app.stats.style.display = "";
+  }
+
+  restoreProductsInSelectedOrder() {
+    const products = this.app.originalProductOrder.filter(
+      (product) => !product.classList.contains("gap"),
+    );
+
+    if (this.app.state.sort) {
+      this.sortBySelectedAttribute(products, this.app.state.sort);
+    }
+
+    products.forEach((product) => {
+      this.app.productList.appendChild(product);
+    });
   }
 }

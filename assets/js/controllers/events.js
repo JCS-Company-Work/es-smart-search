@@ -25,6 +25,10 @@ export class Events {
     // Bind click events to filter controls within fieldsets that have a data-filter-group attribute
     this.app.filterService.bindFilters();
 
+    // Bind click events to sorting controls within the sorting fieldset
+    this.app.filterService.bindSortDropdown();
+    this.app.filterService.bindSorting();
+
     // Bind click event to the reset button to clear the search state
     this.app.resetButton?.addEventListener("click", (event) => {
       event.preventDefault();

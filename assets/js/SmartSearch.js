@@ -34,6 +34,9 @@ export default class SmartSearch {
       // Object to hold current filter state
       filters: {},
 
+      // Object to hold current sort state (featured by default)
+      sort: null,
+
       // Current page number for pagination
       page: 1,
 
