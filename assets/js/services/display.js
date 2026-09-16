@@ -250,7 +250,6 @@ export class DisplayService {
       // Extract the values for the left and right products based on the selected sort attribute.
       const leftValue = Number(left.dataset[dataKey]);
       const rightValue = Number(right.dataset[dataKey]);
-      console.log(leftValue, rightValue);
 
       const safeLeft = Number.isFinite(leftValue)
         ? leftValue
@@ -340,47 +339,12 @@ export class DisplayService {
   /**
    * Restore the products to the order they were in when initially loaded.
    * This is used when resetting the product list to its original state.
+   * @returns {array<HTMLLIElement>} The restored, sorted product elements.
    */
   restoreProductsInSelectedOrder() {
-    // Create a copy of the original product order to work with.
-    const products = [...this.app.originalProductOrder];
-
-    // Sort the copied products array based on the original product order.
-    this.sortProducts(products, new Map());
-
-    // Append the sorted products back to the product list in the correct order.
-    products.forEach((product) => this.app.productList.appendChild(product));
-  }
-
-  /**
-   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
-   * This is called when the search query and filters are cleared, allowing the user to see all products again.
-   */
-  showAllProducts() {
-    // Append the original product order back to the product list in the original order
-    this.app.originalProductOrder.forEach((product) =>
-      this.app.productList.appendChild(product),
-    );
-
-    // Remove the "es-smart-search-hidden" class from all products to make them visible again
-    this.restoreProductsInSelectedOrder();
-
-    // Reset the visible count to the total number of products
-    this.app.paginationService.resetToAllProducts();
-    this.app.paginationService.renderCurrentPage();
-    this.app.paginationService.updatePaginationCount();
-    this.app.paginationService.addPaginationButtons();
-
-    // Hide the "no results" message if it is currently displayed
-    if (this.app.noResults) this.app.noResults.style.display = "none";
-
-    // Show the stats element if it is currently hidden
-    if (this.app.stats) this.app.stats.style.display = "";
-  }
-
-  restoreProductsInSelectedOrder() {
-    const products = this.app.originalProductOrder.filter(
-      (product) => !product.classList.contains("gap"),
+    // Query the live DOM rather than the boot-time snapshot, matching sortCurrentProducts()/renderResults().
+    const products = Array.from(
+      this.app.productList.querySelectorAll(":scope > li:not(.gap)"),
     );
 
     if (this.app.state.sort) {
@@ -390,5 +354,29 @@ export class DisplayService {
     products.forEach((product) => {
       this.app.productList.appendChild(product);
     });
+
+    return products;
+  }
+
+  /**
+   * Restore the original product order and visibility, hiding any "no results" message and showing the stats.
+   * This is called when the search query and filters are cleared, allowing the user to see all products again.
+   */
+  showAllProducts() {
+    // Rebuild the list in the active sort order rather than the raw load order.
+    const products = this.restoreProductsInSelectedOrder();
+
+    // Paginate using the sorted order so page 1 reflects the active sort, not the raw load order.
+    this.app.state.page = 1;
+    this.app.paginationService.paginateMatchingProducts(products);
+    this.app.paginationService.renderCurrentPage();
+    this.app.paginationService.updatePaginationCount();
+    this.app.paginationService.addPaginationButtons();
+
+    // Hide the "no results" message if it is currently displayed
+    if (this.app.noResults) this.app.noResults.style.display = "none";
+
+    // Show the stats element if it is currently hidden
+    if (this.app.stats) this.app.stats.style.display = "";
   }
 }

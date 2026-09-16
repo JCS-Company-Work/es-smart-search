@@ -33,7 +33,7 @@ export class FilterService {
       // If an option within the dropdown menu is clicked, update the sort label and close the dropdown
       if (option) {
         // Update the sort label to reflect the selected option
-        dropdown.querySelector(".sort-label").textContent =
+        dropdown.querySelector(".select span").textContent =
           option.textContent.trim();
 
         // Close the dropdown after selecting an option
