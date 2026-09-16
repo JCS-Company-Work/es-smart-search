@@ -1,9 +1,22 @@
 export class SearchReportingService {
   constructor(app) {
     this.app = app;
+
+    // Tracks the last query text reported, so refining filters on an unchanged query doesn't re-record it.
+    this.lastReportedQuery = null;
   }
 
   record(data, visibleProductCount) {
+    const query = this.app.state.query.trim();
+
+    // If the search query is empty or only contains whitespace, do not record the search event.
+    if (!query) return;
+
+    // Skip if this query was already reported and only filters have changed since.
+    if (query === this.lastReportedQuery) return;
+
+    this.lastReportedQuery = query;
+
     // Determine if the search returned any results based on the visible product count.
     const hasResults = visibleProductCount > 0 ? 1 : 0;
 
