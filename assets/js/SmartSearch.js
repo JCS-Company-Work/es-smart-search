@@ -132,7 +132,7 @@ export default class SmartSearch {
   boot() {
     // Store the original product order for restoring when no search is active
     this.originalProductOrder = Array.from(
-      this.productList.querySelectorAll(":scope > li"),
+      this.productList.querySelectorAll(":scope > li:not(.gap)"),
     );
 
     this.loadingService.createLoadingIndicator();
