@@ -57,6 +57,9 @@ class SearchReporting {
 
     public function register_routes() {
 
+        // Auth callback function to check API key supplied is valid
+        $auth_callback = [ $this, 'check_api_key_permission' ];
+
         // Register REST API routes for search reporting
         register_rest_route(
             'es-smart-search/v1',
@@ -64,7 +67,7 @@ class SearchReporting {
             [
                 'methods' => 'POST',
                 'callback' => [ $this, 'handle_report' ],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $auth_callback,
             ]
         );
 
@@ -75,7 +78,7 @@ class SearchReporting {
             [
                 'methods' => 'GET',
                 'callback' => [ $this, 'handle_summary' ],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $auth_callback,
             ]
         );
 
@@ -86,7 +89,7 @@ class SearchReporting {
             [
                 'methods' => 'GET',
                 'callback' => [ $this, 'handle_activity' ],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $auth_callback,
             ]
         );
 
@@ -97,7 +100,7 @@ class SearchReporting {
             [
                 'methods' => 'GET',
                 'callback' => [ $this, 'handle_popular' ],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $auth_callback,
             ]
         );
 
@@ -108,9 +111,60 @@ class SearchReporting {
             [
                 'methods' => 'GET',
                 'callback' => [ $this, 'handle_no_results' ],
-                'permission_callback' => '__return_true',
+                'permission_callback' => $auth_callback,
             ]
         );
+    }
+
+    public function check_api_key_permission( \WP_REST_Request $request ) {
+        // Extract token via custom HTTP header context
+        $provided_key = $request->get_header( 'x_plugin_api_key' );
+
+        // Query param fallback if header is absent
+        if ( empty( $provided_key ) ) {
+            $provided_key = $request->get_param( 'api_key' );
+        }
+
+        $stored_key = $this->get_decrypted_api_key();
+
+        // Halt execution if an API token hasn't been configured/saved yet
+        if ( empty( $stored_key ) ) {
+            return new \WP_Error(
+                'rest_forbidden',
+                __( 'API authentication is unconfigured on the server.', 'es-smart-search' ),
+                [ 'status' => 500 ]
+            );
+        }
+
+        // Timing-attack safe evaluation checking strings logic
+        if ( ! hash_equals( $stored_key, (string) $provided_key ) ) {
+            return new \WP_Error(
+                'rest_forbidden',
+                __( 'Invalid or missing API key.', 'es-smart-search' ),
+                [ 'status' => 401 ]
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Retrieve and decrypt the stored API key for reporting purposes.
+     *
+     * @return string Decrypted API key or empty string if not configured.
+     */
+    private function get_decrypted_api_key() {
+
+        $encoded = get_option( 'smart_search_reporting_api_key', '' );
+        if ( empty( $encoded ) ) return '';
+
+        $secret_key = defined( 'AUTH_KEY' ) ? AUTH_KEY : 'site_fallback_salt';
+        $secret_iv  = defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : 'site_fallback_iv';
+        
+        $key = hash( 'sha256', $secret_key );
+        $iv  = substr( hash( 'sha256', $secret_iv ), 0, 16 );
+        
+        return openssl_decrypt( base64_decode( $encoded ), "AES-256-CBC", $key, 0, $iv );
     }
 
     /**
