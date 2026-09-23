@@ -117,8 +117,9 @@ class SearchReporting {
     }
 
     public function check_api_key_permission( \WP_REST_Request $request ) {
+
         // Extract token via custom HTTP header context
-        $provided_key = $request->get_header( 'x_plugin_api_key' );
+        $provided_key = $request->get_header( 'X-ES-Smart-Search-Key' );
 
         // Query param fallback if header is absent
         if ( empty( $provided_key ) ) {
