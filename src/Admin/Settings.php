@@ -50,6 +50,14 @@ class Settings {
             'sanitize_callback' => [ $this, 'sanitize_weights' ]
         ] );
 
+        // Register reporting API key setting
+        register_setting( 'es_smart_search_global_group', 'smart_search_reporting_api_key',             
+            [
+                'sanitize_callback' => [ $this, 'encrypt_reporting_api_key' ],
+                'type'              => 'string'
+            ] 
+        );
+
     }
 
     /**
@@ -72,12 +80,12 @@ class Settings {
                 <a href="#esss-tab-general" class="nav-tab nav-tab-active">General & Typos</a>
                 <a href="#esss-tab-dictionary" class="nav-tab">Dictionary Overrides</a>
                 <a href="#esss-tab-weighting" class="nav-tab">Search Weighting</a>
+                <a href="#esss-tab-advanced" class="nav-tab">Advanced</a>
             </nav>
             
             <form method="post" action="options.php">
                 <?php settings_fields( 'es_smart_search_global_group' ); ?>
 
-                <!-- Tab Content 1 -->
                 <div id="esss-tab-general" class="esss-tab-pane">
                     <table class="form-table">
                         <?php include $views_dir . 'tab-general.php'; ?>
@@ -94,7 +102,11 @@ class Settings {
                     </table>
                     
                 </div>
-
+                <div id="esss-tab-advanced" class="esss-tab-pane" style="display: none;">
+                    <table class="form-table">
+                        <?php include $views_dir . 'tab-advanced.php'; ?>
+                    </table>
+                </div>
                 <div class="esss-submit-actions">
                     <?php submit_button('Save Settings'); ?>
                 </div>
@@ -234,5 +246,60 @@ class Settings {
         // Fallback safeguard
         return is_array( $input ) ? $input : [];
     }
+
+    /**
+     * Encrypt the reporting API key before saving it to the database.
+     *
+     * @param string $input The reporting API key to encrypt.
+     * @return string The encrypted API key.
+     */
+    public function encrypt_reporting_api_key( $input ) {
+
+        // Return empty string if input is empty
+        if ( empty( $input ) ) return '';
+
+        // Prepare the secret key and initialization vector for encryption
+        $secret_key = defined( 'AUTH_KEY' ) ? AUTH_KEY : 'site_fallback_salt';
+        $secret_iv  = defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : 'site_fallback_iv';
+        
+        // Hash the secret key and truncate the IV to 16 bytes for AES-256-CBC encryption
+        $key = hash( 'sha256', $secret_key );
+        $iv  = substr( hash( 'sha256', $secret_iv ), 0, 16 );
+        
+        // Encrypt the input using AES-256-CBC with the prepared key and IV
+        $encrypted = openssl_encrypt( $input, "AES-256-CBC", $key, 0, $iv );
+        
+        // Return the base64-encoded encrypted string
+        return base64_encode( $encrypted );
+
+    }
+
+    /**
+     * Decrypt the reporting API key retrieved from the database.
+     * @param string $encoded The base64-encoded encrypted API key from the database.
+     * @return string The decrypted API key.
+     */
+    public static function get_decrypted_api_key( $encoded = '' ) {
+
+        // Return empty string if no encoded key is available
+        if ( empty( $encoded ) ) {
+            $encoded = get_option( 'smart_search_reporting_api_key', '' );
+        }
+
+        // If the encoded key is still empty after attempting to retrieve it from the database, return an empty string.
+        if ( empty( $encoded ) ) return '';
+
+        // Prepare the secret key and initialization vector for decryption
+        $secret_key = defined( 'AUTH_KEY' ) ? AUTH_KEY : 'site_fallback_salt';
+        $secret_iv  = defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : 'site_fallback_iv';
+        
+        // Hash the secret key and truncate the IV to 16 bytes for AES-256-CBC decryption
+        $key = hash( 'sha256', $secret_key );
+        $iv  = substr( hash( 'sha256', $secret_iv ), 0, 16 );
+        
+        // Decrypt the encoded key using AES-256-CBC with the prepared key and IV
+        return openssl_decrypt( base64_decode( $encoded ), "AES-256-CBC", $key, 0, $iv );
+    }
+
 
 }

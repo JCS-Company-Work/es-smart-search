@@ -6,7 +6,14 @@ class ESSS_Admin {
    * Set up global view handles and initialize all functional block components.
    */
   constructor() {
+    // Cache frequently accessed DOM elements for later use
+    this.cacheDOMElements();
+
+    // Initialize tab navigation and event listeners for admin interface
     this.initTabs();
+
+    // Initialize event listeners for generate and copy buttons
+    this.initEvents();
 
     // Query all active weighting manager rows across the canvas workspace
     const managerBlocks = document.querySelectorAll(
@@ -15,6 +22,15 @@ class ESSS_Admin {
     managerBlocks.forEach((block) => {
       this.initWeightBlock(block);
     });
+  }
+
+  cacheDOMElements() {
+    this.apiField = document.getElementById("smart_search_api_field");
+    this.genBtn = document.getElementById("smart_search_btn_generate");
+    this.copyBtn = document.getElementById("smart_search_btn_copy");
+    this.statusMsg = document.getElementById("smart_search_status_msg");
+    this.defaultText =
+      "Your API key is automatically encrypted before being saved to the database.";
   }
 
   /**
@@ -176,6 +192,90 @@ class ESSS_Admin {
         }
       });
     });
+  }
+
+  /**
+   * Initialize the API key management functionality.
+   */
+  /**
+   * Bind action listeners ensuring lexical 'this' remains scoped to the class
+   */
+  initEvents() {
+    this.genBtn.addEventListener("click", () => this.handleGenerate());
+    this.copyBtn.addEventListener("click", () => this.handleCopy());
+  }
+
+  /**
+   * Generates a new secure API key and updates the input field.
+   */
+  handleGenerate() {
+    // Generate a secure random key
+    const buffer = new Uint8Array(24);
+
+    // Fill the buffer with secure random values
+    window.crypto.getRandomValues(buffer);
+
+    // Convert the buffer to a base64-encoded string and sanitize it to create the raw key
+    const rawKey = btoa(String.fromCharCode.apply(null, buffer))
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .substring(0, 32);
+
+    // Prepend the 'sk_' prefix to indicate a secret key
+    this.apiField.value = `sk_${rawKey}`;
+
+    // Update the input field to display the newly generated key
+    this.apiField.type = "text";
+
+    this.updateStatus(
+      'New key generated! Remember to click "Save Changes".',
+      "#2271b1",
+    );
+  }
+
+  /**
+   * Extracts field text and passes it securely to the clipboard context
+   */
+  handleCopy() {
+    // Retrieve the current value from the API key input field
+    const keyValue = this.apiField.value;
+
+    // If the key is empty, provide feedback and exit early
+    if (!keyValue) {
+      this.updateStatus(
+        "Nothing to copy. Generate or enter a key first.",
+        "#d63638",
+      );
+      return;
+    }
+
+    // Attempt to write the key to the clipboard
+    navigator.clipboard
+      .writeText(keyValue)
+      .then(() => {
+        this.updateStatus("Copied to clipboard!", "#68de7c");
+        setTimeout(() => this.resetStatus(), 2500);
+      })
+      .catch(() => {
+        this.updateStatus(
+          "Failed to copy. Please copy it manually.",
+          "#d63638",
+        );
+      });
+  }
+
+  /**
+   * UI Feedback helpers
+   */
+  updateStatus(text, color) {
+    this.statusMsg.textContent = text;
+    this.statusMsg.style.color = color;
+    this.statusMsg.style.fontWeight = "bold";
+  }
+
+  resetStatus() {
+    this.statusMsg.textContent = this.defaultText;
+    this.statusMsg.style.color = "";
+    this.statusMsg.style.fontWeight = "normal";
   }
 }
 
