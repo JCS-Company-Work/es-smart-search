@@ -67,7 +67,7 @@ class SearchReporting {
             [
                 'methods' => 'POST',
                 'callback' => [ $this, 'handle_report' ],
-                'permission_callback' => $auth_callback,
+                'permission_callback' => '__return_true',
             ]
         );
 
