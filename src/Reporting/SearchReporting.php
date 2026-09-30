@@ -178,15 +178,24 @@ class SearchReporting {
         global $wpdb;
         $table_name = $wpdb->prefix . 'es_smart_search_events';
 
+        $normalised_query = self::esss_normalise_query( sanitize_text_field( $request->get_param( 'query_normalised' ) ) );
+        $has_results = intval( $request->get_param( 'has_results' ) );
+        $suggestion = sanitize_text_field( $request->get_param( 'suggestion' ) );
+
+        // Determine the type of match for the search query based on the results and suggestion.
+        $match_type = self::determine_match_type( $normalised_query, $has_results, $suggestion );
+
         $data = [
             'created_at' => current_time( 'mysql' ),
             'visitor_id' => sanitize_text_field( $request->get_param( 'visitor_id' ) ),
             'session_id' => sanitize_text_field( $request->get_param( 'session_id' ) ),
             'query_raw' => sanitize_text_field( $request->get_param( 'query_raw' ) ),
             'query_normalised' => self::esss_normalise_query( sanitize_text_field( $request->get_param( 'query_normalised' ) ) ),
+            'match_type' => $match_type,
             'matching_batches' => intval( $request->get_param( 'matching_batches' ) ),
             'displayed_parents' => intval( $request->get_param( 'displayed_parents' ) ),
             'has_results' => intval( $request->get_param( 'has_results' ) ),
+            'suggestion' => $suggestion,
             'top_matches_json' => wp_json_encode( $request->get_param( 'top_matches_json' ) ),
             'page_path' => sanitize_text_field( $request->get_param( 'page_path' ) ),
         ];
@@ -458,6 +467,35 @@ class SearchReporting {
 
         // Return the results as a WP_REST_Response
         return new \WP_REST_Response( $results, 200 );
+    }
+
+    /**
+     * Determine the match type for a search query based on the dictionary and search results.
+     *
+     * @param string $normalised_query The normalised search query.
+     * @param int $has_results Indicates whether the search returned results (1) or not (0).
+     * @param string|null $suggestion The suggested query if the search did not return results.
+     * @return string The match type ('direct', 'fuzzy', or 'no_results').
+     */
+    private static function determine_match_type($normalised_query, $has_results, $suggestion = null) {
+
+        // Fetch the dictionary terms to check against the normalised query.
+        $dictionary = new \EsSmartSearch\Suggestion\Dictionary();
+        $dictionary_terms = $dictionary->get_terms();
+
+        // Determine match type based on whether the normalised query is in the dictionary, if the search returned results, and if there is a suggestion
+        if ( in_array( $normalised_query, $dictionary_terms, true ) ) {
+            $match_type = 'direct';
+        } elseif ( $has_results === 1 ) {
+            $match_type = 'fuzzy';
+        } elseif ( $suggestion ) {
+            $match_type = 'suggested';
+        } else {
+            $match_type = 'no_results';
+        }
+        
+        return $match_type;
+
     }
 
     /**

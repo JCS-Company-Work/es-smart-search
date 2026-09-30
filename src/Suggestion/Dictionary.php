@@ -12,8 +12,8 @@ class Dictionary {
     private const CACHE_KEY = 'es_smart_search_suggestion_vocabulary';
 
     /**
-     * Define the exact names/slugs of your target ACF custom fields.
-     * Edit this array to match your ACF field names.
+     * Define the exact names/slugs of target ACF custom fields.
+     * Edit this array to match ACF field names.
      */
     private array $target_acf_fields = [
         'colour',
@@ -157,7 +157,7 @@ class Dictionary {
 
             $batch_records = $wpdb->get_results( $query, ARRAY_A );
 
-            // Process the records through your extractor loops exactly as before
+            // Process the records through extractor loops exactly as before
             if ( ! empty( $batch_records ) ) {
                 foreach ( $batch_records as $record ) {
                     $this->extract_clean_words( $record['post_title'], $unique_words );
@@ -237,7 +237,7 @@ class Dictionary {
         $leftover_units_pattern = '/\b(?:\d+\s*mm|mm)\b/ui';
         $cleaned_text = preg_replace( $leftover_units_pattern, '', $cleaned_text );
 
-        // Normalise the text down using your standard index normaliser rules
+        // Normalise the text down using standard index normaliser rules
         $normalised = SearchNormalizer::normalise( $cleaned_text );
         $words = array_filter( preg_split( '/\s+/', $normalised ) );
 

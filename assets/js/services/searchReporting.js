@@ -27,6 +27,7 @@ export class SearchReportingService {
       query_raw: this.app.state.query,
       query_normalised: data.query,
       matching_batches: data.count,
+      suggestion: data.suggestion?.[0] || null,
       displayed_parents: visibleProductCount,
       has_results: hasResults,
       top_matches_json: (data.ranking || []).slice(0, 20).map((match) => ({
