@@ -11,6 +11,8 @@ use EsSmartSearch\Suggestion\Dictionary;
 use EsSmartSearch\Suggestion\Service;
 use EsSmartSearch\Reporting\SearchReporting;
 
+use EsSmartSearch\CLI\SearchReportingBackfill;
+
 class Plugin {
 
     /**
@@ -45,5 +47,12 @@ class Plugin {
         
         // Register the Settings hooks.
         Settings::boot();
+
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+            \WP_CLI::add_command(
+                'es-smart-search reporting-backfill',
+                [ SearchReportingBackfill::class, 'run' ]
+            );
+        }
     }
 }

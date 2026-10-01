@@ -38,9 +38,11 @@ class SearchReporting {
             session_id CHAR(36) NOT NULL,
             query_raw VARCHAR(255) NOT NULL,
             query_normalised VARCHAR(255) NOT NULL,
+            match_type VARCHAR(50) NOT NULL,
             matching_batches INT UNSIGNED NOT NULL DEFAULT 0,
             displayed_parents INT UNSIGNED NOT NULL DEFAULT 0,
             has_results TINYINT(1) NOT NULL DEFAULT 0,
+            suggestion VARCHAR(255) NULL,
             top_matches_json LONGTEXT NULL,
             page_path VARCHAR(255) NOT NULL,
             PRIMARY KEY (id),
@@ -71,46 +73,12 @@ class SearchReporting {
             ]
         );
 
-        // Register REST API route for summary
         register_rest_route(
             'es-smart-search/v1',
-            '/summary',
+            '/dashboard',
             [
                 'methods' => 'GET',
-                'callback' => [ $this, 'handle_summary' ],
-                'permission_callback' => $auth_callback,
-            ]
-        );
-
-        // Register REST API route for activity
-        register_rest_route(
-            'es-smart-search/v1',
-            '/activity',
-            [
-                'methods' => 'GET',
-                'callback' => [ $this, 'handle_activity' ],
-                'permission_callback' => $auth_callback,
-            ]
-        );
-
-        // Register REST API route for popular searches
-        register_rest_route(
-            'es-smart-search/v1',
-            '/popular',
-            [
-                'methods' => 'GET',
-                'callback' => [ $this, 'handle_popular' ],
-                'permission_callback' => $auth_callback,
-            ]
-        );
-
-        // Register REST API route for no-results searches
-        register_rest_route(
-            'es-smart-search/v1',
-            '/no-results',
-            [
-                'methods' => 'GET',
-                'callback' => [ $this, 'handle_no_results' ],
+                'callback' => [ $this, 'handle_dashboard' ],
                 'permission_callback' => $auth_callback,
             ]
         );
@@ -168,11 +136,26 @@ class SearchReporting {
         return openssl_decrypt( base64_decode( $encoded ), "AES-256-CBC", $key, 0, $iv );
     }
 
+    public function handle_dashboard( \WP_REST_Request $request ) {
+
+        return new \WP_REST_Response(
+            [
+                'summary'         => $this->handle_summary( $request )->get_data(),
+                'activity'        => $this->handle_activity( $request )->get_data(),
+                'popular'         => $this->handle_popular( $request )->get_data(),
+                'no_results'      => $this->handle_no_results( $request )->get_data(),
+                'match_type'      => $this->handle_match_type( $request )->get_data(),
+                'suggested_terms' => $this->handle_suggestions( $request )->get_data(),
+            ],
+            200
+        );
+    }
+
     /**
      * Persist search data to the database for reporting purposes.
      *
      * @param \WP_REST_Request $request
-     * @return void
+     * @return \WP_REST_Response
      */
     public function handle_report( \WP_REST_Request $request ) {
         global $wpdb;
@@ -212,7 +195,7 @@ class SearchReporting {
      * Get a summary of search activity within a specified date range.
      *
      * @param \WP_REST_Request $request
-     * @return void
+     * @return \WP_REST_Response
      */
     public function handle_summary( \WP_REST_Request $request ) {
 
@@ -286,7 +269,7 @@ class SearchReporting {
      * Handle activity requests and return search activity data.
      *
      * @param \WP_REST_Request $request
-     * @return void
+     * @return \WP_REST_Response
      */
     public function handle_activity( \WP_REST_Request $request ) {
 
@@ -343,7 +326,7 @@ class SearchReporting {
      * Handle popular search queries requests and return popular search data.
      *
      * @param \WP_REST_Request $request
-     * @return void
+     * @return \WP_REST_Response
      */
     public function handle_popular( \WP_REST_Request $request ) {
 
@@ -408,7 +391,7 @@ class SearchReporting {
      * Handle no results search queries.
      *
      * @param \WP_REST_Request $request
-     * @return void
+     * @return \WP_REST_Response
      */
     public function handle_no_results( \WP_REST_Request $request ) {
 
@@ -466,6 +449,113 @@ class SearchReporting {
         $results = $wpdb->get_results( $sql );
 
         // Return the results as a WP_REST_Response
+        return new \WP_REST_Response( $results, 200 );
+    }
+
+    /**
+     * Handle the match type reporting for search events.
+     *
+     * @param \WP_REST_Request $request
+     * @return \WP_REST_Response
+     *
+     * @throws \WP_Error If there is an error processing the request.
+     */
+    public function handle_match_type( \WP_REST_Request $request ) {
+
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'es_smart_search_events';
+
+        $from = sanitize_text_field(
+            $request->get_param( 'from' )
+        );
+
+        $to = sanitize_text_field(
+            $request->get_param( 'to' )
+        );
+
+        $where  = 'WHERE match_type IS NOT NULL AND match_type != \'\'';
+        $params = [];
+
+        if ( $from ) {
+            $where .= ' AND created_at >= %s';
+            $params[] = $from . ' 00:00:00';
+        }
+
+        if ( $to ) {
+            $where .= ' AND created_at <= %s';
+            $params[] = $to . ' 23:59:59';
+        }
+
+        $sql = "
+            SELECT
+                match_type,
+                COUNT(*) AS count
+            FROM {$table_name}
+            {$where}
+            GROUP BY match_type
+            ORDER BY match_type ASC
+        ";
+
+        if ( $params ) {
+            $sql = $wpdb->prepare( $sql, $params );
+        }
+
+        $results = $wpdb->get_results( $sql );
+
+        return new \WP_REST_Response( $results, 200 );
+    }
+
+    /**
+     * Handle the retrieval of search suggestions from the database.
+     * Only returns results where both the query and suggestion are not empty.
+     *
+     * @return \WP_REST_Response The response containing the search suggestions.
+     */
+    public static function handle_suggestions( \WP_REST_Request $request ) {
+
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'es_smart_search_events';
+
+        $from = sanitize_text_field(
+            $request->get_param( 'from' )
+        );
+
+        $to = sanitize_text_field(
+            $request->get_param( 'to' )
+        );
+
+        $where  = 'WHERE suggestion IS NOT NULL AND suggestion != \'\' AND query_normalised IS NOT NULL AND query_normalised != \'\'';
+        $params = [];
+
+        if ( $from ) {
+            $where .= ' AND created_at >= %s';
+            $params[] = $from . ' 00:00:00';
+        }
+
+        if ( $to ) {
+            $where .= ' AND created_at <= %s';
+            $params[] = $to . ' 23:59:59';
+        }
+
+        $sql = "
+            SELECT
+                query_normalised,
+                suggestion,
+                COUNT(*) AS searches
+            FROM {$table_name}
+            {$where}
+            GROUP BY query_normalised, suggestion
+            ORDER BY searches DESC
+        ";
+
+        if ( $params ) {
+            $sql = $wpdb->prepare( $sql, $params );
+        }
+
+        $results = $wpdb->get_results( $sql );
+
         return new \WP_REST_Response( $results, 200 );
     }
 
