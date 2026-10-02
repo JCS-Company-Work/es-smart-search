@@ -2,6 +2,8 @@
 
 namespace EsSmartSearch\CLI;
 
+use EsSmartSearch\Indexing\SearchIndex;
+use EsSmartSearch\Indexing\SearchMatcher;
 use EsSmartSearch\Suggestion\Dictionary;
 use EsSmartSearch\Suggestion\Service;
 
@@ -15,6 +17,8 @@ class SearchReportingBackfill {
 
         $dictionary = new Dictionary();
         $service    = new Service( $dictionary );
+        $search_index   = new SearchIndex();
+        $search_matcher = new SearchMatcher();
 
         $terms = $dictionary->get_terms();
 
@@ -90,17 +94,42 @@ class SearchReportingBackfill {
 
             } else {
                 $suggestions = $service->get_suggestions(
-                    $query,
-                    $terms,
-                    1
-                );
+                $query,
+                $terms,
+                1
+            );
 
-                if ( ! empty( $suggestions ) ) {
-                    $match_type      = 'suggestion';
-                    $suggested_value = $suggestions[0];
-                } else {
-                    $match_type = 'no_results';
+            $suggested_value = null;
+
+            if ( ! empty( $suggestions ) ) {
+
+                $searchable_batches = $search_index->get_searchable_batches();
+
+                foreach ( $suggestions as $suggestion ) {
+
+                    foreach ( $searchable_batches as $batch ) {
+
+                        $matched_fields = [];
+
+                        $score = $search_matcher->score_batch(
+                            $suggestion,
+                            $batch,
+                            $matched_fields
+                        );
+
+                        if ( $score > 0 ) {
+                            $suggested_value = $suggestion;
+                            break 2;
+                        }
+                    }
                 }
+            }
+
+            if ( $suggested_value !== null ) {
+                $match_type = 'suggestion';
+            } else {
+                $match_type = 'no_results';
+            }
             }
 
             // Save the classification and suggestion.
