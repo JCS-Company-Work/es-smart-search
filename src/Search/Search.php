@@ -194,13 +194,28 @@ class Search {
             if ( ! empty( $vocabulary ) ) {
 
                 // Fetch suggestion limit value from the settings
-                $suggestions_limit = intval( get_option( 'esss_suggestions_limit', 1 ) ); 
+                $suggestions_limit = intval( get_option( 'esss_suggestions_limit', 1 ) );
 
-                // Fetch the suggestion via your SearchMatcher using your preferred limit setting (e.g. 1)
-                $suggestion = $this->service->get_suggestions( $query, $vocabulary, $suggestions_limit );
+                // Generate spelling suggestions
+                $suggestions = $this->service->get_suggestions(
+                    $query,
+                    $vocabulary,
+                    10
+                );
+                // Only keep suggestions that produce actual search results
+                if ( ! empty( $suggestions ) ) {
+                    $suggestion = array_values(
+                        array_filter(
+                            $suggestions,
+                            fn( $candidate ) => $this->suggestion_has_results( $candidate, $filters )
+                        )
+                    );
+
+                    $suggestion = array_slice( $suggestion, 0, $suggestions_limit );
+                }
             }
 
-            // If spelling service fails to offer a typo correction, evaluate our fallback settings
+            // If spelling service fails to offer a valid correction, evaluate our fallback settings
             if ( empty( $suggestion ) ) {
                 $fallback_data = $this->prepare_fallback_data();
             }
@@ -371,5 +386,31 @@ class Search {
         return $payload;
     }
 
+    private function suggestion_has_results( string $suggestion, array $filters ): bool
+    {
+        $index_source = 'empty';
+
+        $searchable_batches = $this->search_index->get_searchable_batches( $index_source );
+
+        foreach ( $searchable_batches as $batch ) {
+            if ( ! $this->search_matcher->matches_filters( $batch['fields'], $filters ) ) {
+                continue;
+            }
+
+            $matched_fields = [];
+
+            $score = $this->search_matcher->score_batch(
+                $suggestion,
+                $batch,
+                $matched_fields
+            );
+
+            if ( $score > 0 ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 }

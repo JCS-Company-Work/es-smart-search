@@ -108,6 +108,15 @@ class Dictionary {
     }
 
     /**
+     * Fetch the blacklist array.
+     *
+     * @return array<int, string> Flat array of blacklisted terms.
+     */
+    public function get_blacklist(): array {
+        return $this->blacklist;
+    }
+
+    /**
      * Rebuild the dictionary terms cache by scanning ACF custom fields.
      *
      * @return bool True on successful update, false otherwise.

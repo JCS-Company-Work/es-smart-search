@@ -29,7 +29,7 @@ class Plugin {
         $dictionary = new Dictionary();
         $dictionary->register();
 
-        $service = new Service();
+        $service = new Service( $dictionary );
 
         // Create a SearchIndex instance and register its hooks.
         $search_index = new SearchIndex();

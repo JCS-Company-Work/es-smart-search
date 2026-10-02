@@ -3,18 +3,18 @@
 namespace EsSmartSearch\Suggestion;
 
 use EsSmartSearch\Indexing\SearchNormalizer;
+use EsSmartSearch\Suggestion\Dictionary;
 
 class Service {
 
     // Define private properties to hold settings in memory
     private int $max_distance_short;
     private int $max_distance_long;
+    private Dictionary $dictionary;
 
-    /**
-     * Pull settings from options table once on boot
-     */
-    public function __construct() {
-        // Fetch values once and cache them in memory with safe fallbacks
+    public function __construct( Dictionary $dictionary ) {
+        $this->dictionary = $dictionary;
+
         $this->max_distance_short = (int) get_option( 'esss_max_distance_short', 1 );
         $this->max_distance_long  = (int) get_option( 'esss_max_distance_long', 2 );
     }
@@ -71,10 +71,16 @@ class Service {
         
         // Split the query into individual words for standard Levenshtein calculations
         $words = array_filter( preg_split( '/\s+/', $query ) );
+        $blacklist = $this->dictionary->get_blacklist();
         $slots = [];
         $has_corrections = false;
 
         foreach ( $words as $word ) {
+            if ( in_array( $word, $blacklist, true ) ) {
+                $slots[] = [ $word ];
+                continue;
+            }
+
             if ( in_array( $word, $cached_dictionary, true ) ) {
                 $slots[] = [ $word ];
                 continue;

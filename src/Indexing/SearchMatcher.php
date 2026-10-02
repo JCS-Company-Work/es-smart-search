@@ -262,7 +262,7 @@ class SearchMatcher {
             if ( empty( $fields[ $group ] ) ) {
                 continue;
             }
-error_log( 'Checking group: ' . $group );
+
             foreach ( $fields[ $group ] as $value ) {
 
                 // If the field is one of the strictly matched groups (size, single_sizes, thickness), we require an exact match.
