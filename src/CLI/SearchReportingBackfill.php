@@ -14,7 +14,7 @@ class SearchReportingBackfill {
         $table_name = $wpdb->prefix . 'es_smart_search_events';
 
         $dictionary = new Dictionary();
-        $service    = new Service();
+        $service    = new Service( $dictionary );
 
         $terms = $dictionary->get_terms();
 
